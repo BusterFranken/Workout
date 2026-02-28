@@ -1,0 +1,19 @@
+name: WorkoutTracker
+options:
+  minimumXcodeGenVersion: 2.38.0
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.busterfranken.WorkoutTracker
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+    TARGETED_DEVICE_FAMILY: 1
+    DEVELOPMENT_TEAM: ""
+targets:
+  WorkoutTracker:
+    type: application
+    platform: iOS
+    sources:
+      - Sources/WorkoutTrackerApp
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/WorkoutTrackerApp/Info.plist

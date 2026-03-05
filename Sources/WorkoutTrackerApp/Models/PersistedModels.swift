@@ -5,6 +5,7 @@ enum GoalMetricType: String, Codable, CaseIterable, Identifiable {
     case totalSets
     case exercisesDone
     case muscleGroupSets
+    case workoutDays
 
     var id: String { rawValue }
 
@@ -16,6 +17,67 @@ enum GoalMetricType: String, Codable, CaseIterable, Identifiable {
             return "Exercises"
         case .muscleGroupSets:
             return "Muscle Sets"
+        case .workoutDays:
+            return "Workout Days"
+        }
+    }
+}
+
+enum WorkoutViewMode: String, Codable, CaseIterable, Identifiable {
+    case muscleGroups
+    case weekdays
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .muscleGroups:
+            return "Muscle Groups"
+        case .weekdays:
+            return "Weekdays"
+        case .custom:
+            return "Custom"
+        }
+    }
+}
+
+enum UnitSystem: String, Codable, CaseIterable, Identifiable {
+    case kg
+    case lb
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .kg:
+            return "kg"
+        case .lb:
+            return "lb"
+        }
+    }
+}
+
+enum AppThemePreference: String, Codable, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+}
+
+enum BodyMetricKind: String, Codable, CaseIterable, Identifiable {
+    case scaleWeight
+    case visualBodyFat
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .scaleWeight:
+            return "Scale Weight"
+        case .visualBodyFat:
+            return "Visual Body Fat"
         }
     }
 }
@@ -52,6 +114,9 @@ final class ExerciseEntity {
     var name: String
     var primaryMuscleGroupID: UUID?
     var primaryMuscleGroupName: String
+    var secondaryMuscleGroupsRaw: String
+    var synonymsRaw: String
+    var notes: String
     var isArchived: Bool
     var createdAt: Date
     var updatedAt: Date
@@ -61,6 +126,9 @@ final class ExerciseEntity {
         name: String,
         primaryMuscleGroupID: UUID?,
         primaryMuscleGroupName: String,
+        secondaryMuscleGroupsRaw: String = "",
+        synonymsRaw: String = "",
+        notes: String = "",
         isArchived: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -69,6 +137,9 @@ final class ExerciseEntity {
         self.name = name
         self.primaryMuscleGroupID = primaryMuscleGroupID
         self.primaryMuscleGroupName = primaryMuscleGroupName
+        self.secondaryMuscleGroupsRaw = secondaryMuscleGroupsRaw
+        self.synonymsRaw = synonymsRaw
+        self.notes = notes
         self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -106,12 +177,15 @@ final class WorkoutTemplateExerciseEntity {
     var name: String
     var muscleGroupID: UUID?
     var muscleGroupName: String
+    var secondaryMuscleGroupsRaw: String
+    var notes: String
+    var weekdayIndex: Int?
+    var customSlot: String?
     var orderIndex: Int
     var sets: Int?
     var reps: Int?
     var seconds: Int?
     var weightKg: Double?
-    var weightCount: Int?
 
     init(
         id: UUID = UUID(),
@@ -120,12 +194,15 @@ final class WorkoutTemplateExerciseEntity {
         name: String,
         muscleGroupID: UUID?,
         muscleGroupName: String,
+        secondaryMuscleGroupsRaw: String = "",
+        notes: String = "",
+        weekdayIndex: Int? = nil,
+        customSlot: String? = nil,
         orderIndex: Int,
         sets: Int?,
         reps: Int?,
         seconds: Int?,
-        weightKg: Double?,
-        weightCount: Int?
+        weightKg: Double?
     ) {
         self.id = id
         self.templateID = templateID
@@ -133,12 +210,15 @@ final class WorkoutTemplateExerciseEntity {
         self.name = name
         self.muscleGroupID = muscleGroupID
         self.muscleGroupName = muscleGroupName
+        self.secondaryMuscleGroupsRaw = secondaryMuscleGroupsRaw
+        self.notes = notes
+        self.weekdayIndex = weekdayIndex
+        self.customSlot = customSlot
         self.orderIndex = orderIndex
         self.sets = sets
         self.reps = reps
         self.seconds = seconds
         self.weightKg = weightKg
-        self.weightCount = weightCount
     }
 }
 
@@ -150,12 +230,15 @@ final class WeeklyExerciseEntity {
     var name: String
     var muscleGroupID: UUID?
     var muscleGroupName: String
+    var secondaryMuscleGroupsRaw: String
+    var notes: String
+    var weekdayIndex: Int?
+    var customSlot: String?
     var orderIndex: Int
     var sets: Int?
     var reps: Int?
     var seconds: Int?
     var weightKg: Double?
-    var weightCount: Int?
     var completedAt: Date?
     var removedAt: Date?
 
@@ -166,12 +249,15 @@ final class WeeklyExerciseEntity {
         name: String,
         muscleGroupID: UUID?,
         muscleGroupName: String,
+        secondaryMuscleGroupsRaw: String = "",
+        notes: String = "",
+        weekdayIndex: Int? = nil,
+        customSlot: String? = nil,
         orderIndex: Int,
         sets: Int?,
         reps: Int?,
         seconds: Int?,
         weightKg: Double?,
-        weightCount: Int?,
         completedAt: Date? = nil,
         removedAt: Date? = nil
     ) {
@@ -181,12 +267,15 @@ final class WeeklyExerciseEntity {
         self.name = name
         self.muscleGroupID = muscleGroupID
         self.muscleGroupName = muscleGroupName
+        self.secondaryMuscleGroupsRaw = secondaryMuscleGroupsRaw
+        self.notes = notes
+        self.weekdayIndex = weekdayIndex
+        self.customSlot = customSlot
         self.orderIndex = orderIndex
         self.sets = sets
         self.reps = reps
         self.seconds = seconds
         self.weightKg = weightKg
-        self.weightCount = weightCount
         self.completedAt = completedAt
         self.removedAt = removedAt
     }
@@ -201,12 +290,12 @@ final class CompletionLogEntity {
     var nameSnapshot: String
     var muscleGroupID: UUID?
     var muscleGroupName: String
+    var secondaryMuscleGroupsRaw: String
     var completedAt: Date
     var setsSnapshot: Int?
     var repsSnapshot: Int?
     var secondsSnapshot: Int?
     var weightKgSnapshot: Double?
-    var weightCountSnapshot: Int?
     var loadSnapshot: Double?
 
     init(
@@ -217,12 +306,12 @@ final class CompletionLogEntity {
         nameSnapshot: String,
         muscleGroupID: UUID?,
         muscleGroupName: String,
+        secondaryMuscleGroupsRaw: String = "",
         completedAt: Date,
         setsSnapshot: Int?,
         repsSnapshot: Int?,
         secondsSnapshot: Int?,
         weightKgSnapshot: Double?,
-        weightCountSnapshot: Int?,
         loadSnapshot: Double?
     ) {
         self.id = id
@@ -232,12 +321,12 @@ final class CompletionLogEntity {
         self.nameSnapshot = nameSnapshot
         self.muscleGroupID = muscleGroupID
         self.muscleGroupName = muscleGroupName
+        self.secondaryMuscleGroupsRaw = secondaryMuscleGroupsRaw
         self.completedAt = completedAt
         self.setsSnapshot = setsSnapshot
         self.repsSnapshot = repsSnapshot
         self.secondsSnapshot = secondsSnapshot
         self.weightKgSnapshot = weightKgSnapshot
-        self.weightCountSnapshot = weightCountSnapshot
         self.loadSnapshot = loadSnapshot
     }
 }
@@ -279,21 +368,98 @@ final class GoalCardEntity {
 }
 
 @Model
+final class BodyMetricEntryEntity {
+    @Attribute(.unique) var id: UUID
+    var kindRaw: String
+    var value: Double
+    var recordedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        kindRaw: String,
+        value: Double,
+        recordedAt: Date = .now
+    ) {
+        self.id = id
+        self.kindRaw = kindRaw
+        self.value = value
+        self.recordedAt = recordedAt
+    }
+
+    var kind: BodyMetricKind {
+        BodyMetricKind(rawValue: kindRaw) ?? .scaleWeight
+    }
+}
+
+@Model
+final class PRRecordEntity {
+    @Attribute(.unique) var id: UUID
+    var exerciseLabel: String
+    var value: Double
+    var recordedAt: Date
+    var notes: String
+
+    init(
+        id: UUID = UUID(),
+        exerciseLabel: String,
+        value: Double,
+        recordedAt: Date = .now,
+        notes: String = ""
+    ) {
+        self.id = id
+        self.exerciseLabel = exerciseLabel
+        self.value = value
+        self.recordedAt = recordedAt
+        self.notes = notes
+    }
+}
+
+@Model
 final class AppSettingsEntity {
     @Attribute(.unique) var id: UUID
     var activeWeekStartDate: Date
+    var activeWorkoutName: String
+    var workoutViewModeRaw: String
     var weeklySetTarget: Int
+    var unitSystemRaw: String
+    var themePreferenceRaw: String
+    var trackingWidgetOrderRaw: String
     var seedVersion: Int
 
     init(
         id: UUID = UUID(),
         activeWeekStartDate: Date,
+        activeWorkoutName: String,
+        workoutViewModeRaw: String,
         weeklySetTarget: Int,
+        unitSystemRaw: String,
+        themePreferenceRaw: String,
+        trackingWidgetOrderRaw: String,
         seedVersion: Int
     ) {
         self.id = id
         self.activeWeekStartDate = activeWeekStartDate
+        self.activeWorkoutName = activeWorkoutName
+        self.workoutViewModeRaw = workoutViewModeRaw
         self.weeklySetTarget = weeklySetTarget
+        self.unitSystemRaw = unitSystemRaw
+        self.themePreferenceRaw = themePreferenceRaw
+        self.trackingWidgetOrderRaw = trackingWidgetOrderRaw
         self.seedVersion = seedVersion
+    }
+
+    var workoutViewMode: WorkoutViewMode {
+        get { WorkoutViewMode(rawValue: workoutViewModeRaw) ?? .muscleGroups }
+        set { workoutViewModeRaw = newValue.rawValue }
+    }
+
+    var unitSystem: UnitSystem {
+        get { UnitSystem(rawValue: unitSystemRaw) ?? .kg }
+        set { unitSystemRaw = newValue.rawValue }
+    }
+
+    var themePreference: AppThemePreference {
+        get { AppThemePreference(rawValue: themePreferenceRaw) ?? .system }
+        set { themePreferenceRaw = newValue.rawValue }
     }
 }

@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "WorkoutTracker",
+    name: "Workouts",
     platforms: [
         .iOS(.v17),
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "WorkoutTrackerApp", targets: ["WorkoutTrackerApp"])
+        .executable(name: "WorkoutsApp", targets: ["WorkoutTrackerApp"])
     ],
     targets: [
         .executableTarget(

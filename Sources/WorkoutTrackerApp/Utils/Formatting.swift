@@ -1,19 +1,26 @@
 import Foundation
 
 enum Formatting {
-    static func compactKg(_ value: Double?) -> String {
-        guard let value else { return "BW" }
-        if value.rounded() == value {
-            return "\(Int(value))kg"
-        }
-        return "\(String(format: "%.1f", value))kg"
-    }
+    static func compactWeight(_ kgValue: Double?, unit: UnitSystem) -> String {
+        guard let kgValue else { return "BW" }
 
-    static func kgWithCount(_ kg: Double?, count: Int?) -> String {
-        guard let kg else { return "BW" }
-        let base = compactKg(kg)
-        guard let count, count > 1 else { return base }
-        return "\(base)x\(count)"
+        let displayValue: Double
+        let suffix: String
+
+        switch unit {
+        case .kg:
+            displayValue = kgValue
+            suffix = "kg"
+        case .lb:
+            displayValue = kgValue * 2.2046226218
+            suffix = "lb"
+        }
+
+        if displayValue.rounded() == displayValue {
+            return "\(Int(displayValue))\(suffix)"
+        }
+
+        return "\(String(format: "%.1f", displayValue))\(suffix)"
     }
 
     static func numericOrEmpty(_ value: Int?) -> String {
@@ -21,19 +28,39 @@ enum Formatting {
         return String(value)
     }
 
-    static func parseWeightEntry(_ raw: String) -> (weightKg: Double?, count: Int?) {
+    static func parseWeightEntry(_ raw: String, unit: UnitSystem) -> Double? {
         let trimmed = raw.lowercased().replacingOccurrences(of: " ", with: "")
+
         if trimmed.isEmpty || trimmed == "bw" {
-            return (nil, nil)
+            return nil
         }
 
-        let parts = trimmed.split(separator: "x")
-        if parts.count == 2 {
-            let weight = Double(parts[0].replacingOccurrences(of: "kg", with: ""))
-            let count = Int(parts[1])
-            return (weight, count)
+        var value = trimmed
+            .replacingOccurrences(of: "kg", with: "")
+            .replacingOccurrences(of: "lb", with: "")
+
+        if let xIndex = value.firstIndex(of: "x") {
+            value = String(value[..<xIndex])
         }
 
-        return (Double(trimmed.replacingOccurrences(of: "kg", with: "")), nil)
+        guard let parsed = Double(value) else {
+            return nil
+        }
+
+        switch unit {
+        case .kg:
+            return parsed
+        case .lb:
+            return parsed / 2.2046226218
+        }
+    }
+
+    static func weightPlaceholder(for unit: UnitSystem) -> String {
+        switch unit {
+        case .kg:
+            return "kg"
+        case .lb:
+            return "lb"
+        }
     }
 }

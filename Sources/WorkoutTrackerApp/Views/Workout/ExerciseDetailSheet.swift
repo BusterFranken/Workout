@@ -17,25 +17,34 @@ struct ExerciseDetailSheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(exercise.name.isEmpty ? "Untitled Exercise" : exercise.name)
                             .font(.title.bold())
-                        Text(exercise.muscleGroupName)
+                        Text(primaryAndSecondaryLine)
                             .foregroundStyle(Theme.secondaryText)
+                    }
+
+                    if !exercise.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        chartCard(title: "Note") {
+                            Text(exercise.notes)
+                                .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
 
                     if logs.isEmpty {
                         emptyCard("No completed logs yet. Check off this exercise to start tracking progression.")
                     } else {
-                        chartCard(title: "Weight Progression (kg)") {
+                        chartCard(title: "Weight Progression (\(repository.unitSystem.title))") {
                             Chart(logs) { point in
+                                let value = displayedWeight(from: point.weightKgSnapshot)
                                 LineMark(
                                     x: .value("Date", point.completedAt),
-                                    y: .value("Weight", point.weightKgSnapshot ?? 0)
+                                    y: .value("Weight", value)
                                 )
                                 .interpolationMethod(.catmullRom)
                                 .foregroundStyle(Theme.accent)
 
                                 PointMark(
                                     x: .value("Date", point.completedAt),
-                                    y: .value("Weight", point.weightKgSnapshot ?? 0)
+                                    y: .value("Weight", value)
                                 )
                                 .foregroundStyle(Theme.accent)
                             }
@@ -76,10 +85,8 @@ struct ExerciseDetailSheet: View {
             content()
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Theme.surface)
-        )
+        .background(Color.clear)
+        .appCard()
     }
 
     private func emptyCard(_ text: String) -> some View {
@@ -88,9 +95,28 @@ struct ExerciseDetailSheet: View {
             .foregroundStyle(Theme.secondaryText)
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Theme.surface)
-            )
+            .background(Color.clear)
+            .appCard()
+    }
+
+    private var primaryAndSecondaryLine: String {
+        let secondary = exercise.secondaryMuscleGroupsRaw
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if secondary.isEmpty {
+            return exercise.muscleGroupName
+        }
+        return "\(exercise.muscleGroupName) • Secondary: \(secondary.joined(separator: ", "))"
+    }
+
+    private func displayedWeight(from kg: Double?) -> Double {
+        guard let kg else { return 0 }
+        switch repository.unitSystem {
+        case .kg:
+            return kg
+        case .lb:
+            return kg * 2.2046226218
+        }
     }
 }

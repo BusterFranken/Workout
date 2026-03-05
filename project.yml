@@ -4,6 +4,7 @@ options:
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: com.busterfranken.WorkoutTracker
+    PRODUCT_NAME: Workouts
     SWIFT_VERSION: 5.10
     IPHONEOS_DEPLOYMENT_TARGET: 17.0
     TARGETED_DEVICE_FAMILY: 1

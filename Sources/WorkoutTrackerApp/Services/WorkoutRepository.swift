@@ -969,6 +969,14 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func updateGoalTarget(_ card: GoalCardEntity, target: Int) {
+        card.targetValue = target
+        if card.isSystem {
+            settings?.weeklySetTarget = target
+        }
+        saveAndRefresh()
+    }
+
     func archiveGoal(_ card: GoalCardEntity) {
         guard !card.isSystem else { return }
         card.isArchived = true

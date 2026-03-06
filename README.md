@@ -1,28 +1,35 @@
-# WorkoutTracker (iOS)
+# Workouts (iOS)
 
 A SwiftUI + SwiftData iOS app for weekly workout checklisting, library management, and progression tracking.
 
 ## Features implemented
 
 - `Workout` tab
-  - Muscle-group headers with done counters.
-  - Editable exercises with separate `sets`, `reps/seconds`, `weight kg`, and `weight count`.
-  - Check/uncheck workflow with `Done this week` section.
+  - View modes: `Muscle Groups`, `Weekdays`, and `Custom` (Workout A-E).
+  - Swipe right to mark done, swipe left for edit/delete.
+  - Editable exercises with separate `sets`, `reps/seconds`, `weight`, secondary muscle groups, and notes.
+  - Check workflow with `Done this week` section (tap opens detail/progression).
   - Top goal cards (`#/target`), custom goal cards (up to 3), long-press wiggle + drag reorder.
-  - Menu actions: add muscle group, start new week, save workout to library, delete weekly workout.
+  - Editable workout name + menu actions (new week, save, delete, change view).
   - Exercise detail overlay with progression charts.
 
 - `Tracking` tab
   - Weekly sets chart.
-  - Last-30-days workout heatmap.
-  - Sets per muscle group with expandable exercise lists.
+  - All-time workout-days heatmap with month markers.
+  - Sets per muscle group with expandable exercise progress (`done sets so far`).
+  - Multi-line trend graph for sets per main muscle group.
+  - Body Metrics cards (Scale Weight + Visual Body Fat) with `Add Weigh-In`.
   - Per-exercise progression charts (`weight`, `kg*reps`).
-  - Classic PR snapshots (deadlift, pull ups, weighted pull ups, bench press, squat).
+  - Classic PR list with tap-to-open PR history + manual add.
 
 - `Library` tab
-  - Searchable workout templates and exercise catalog (name + muscle group).
-  - Add full template or single exercise to active week.
+  - Bottom search bar over template names, exercise names, muscle groups, and synonyms.
+  - Add full template to weekly workout (`add unique` or `replace current`) or add single exercise.
+  - Template and exercise detail overlays.
   - Upload workout from pasted text or CSV/TXT file (line-based parser).
+
+- `More` tab
+  - Units (`kg/lb`), theme preference (`system/light/dark`), and contact page.
 
 - Data model
   - Active week and saved library templates are separate entities.
@@ -30,7 +37,7 @@ A SwiftUI + SwiftData iOS app for weekly workout checklisting, library managemen
 
 ## Seed data
 
-The default library includes your imported workout catalog from `Workouts DB.xlsx`.
+The default library includes your imported workout catalog from `Workouts DB (1).xlsx`.
 
 ## Build options
 

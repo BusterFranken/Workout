@@ -1,11 +1,20 @@
 import Charts
 import SwiftUI
 
+private struct SelectedPRItem: Identifiable {
+    let id = UUID()
+    let label: String
+}
+
 struct TrackingView: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
     @State private var expandedGroups: Set<UUID> = []
     @State private var selectedExercise: WeeklyExerciseEntity?
+    @State private var selectedPRItem: SelectedPRItem?
+
+    @State private var isReordering = false
+    @State private var showingWeighInSheet = false
 
     var body: some View {
         NavigationStack {
@@ -14,10 +23,35 @@ struct TrackingView: View {
                     Text("Insights & Analytics")
                         .font(.sectionTitle)
 
-                    weeklySetsCard
-                    WorkoutHeatmapView(points: repository.last30DayActivity())
-                    muscleVolumeCard
-                    prCard
+                    ForEach(repository.trackingWidgetOrder) { widgetID in
+                        trackingWidget(widgetID)
+                            .draggable(widgetID.rawValue)
+                            .dropDestination(for: String.self) { items, _ in
+                                guard isReordering,
+                                      let first = items.first,
+                                      let source = TrackingWidgetID(rawValue: first),
+                                      source != widgetID,
+                                      let destination = repository.trackingWidgetOrder.firstIndex(of: widgetID)
+                                else {
+                                    return false
+                                }
+                                repository.reorderTrackingWidgets(from: source, to: destination)
+                                return true
+                            }
+                            .onLongPressGesture {
+                                withAnimation(.spring) {
+                                    isReordering = true
+                                }
+                                Haptics.soft()
+                            }
+                            .wiggle(isReordering)
+                    }
+
+                    if isReordering {
+                        Text("Drag cards to reorder")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                    }
                 }
                 .padding()
             }
@@ -26,11 +60,40 @@ struct TrackingView: View {
             .sheet(item: $selectedExercise) { row in
                 ExerciseDetailSheet(exercise: row)
             }
+            .sheet(item: $selectedPRItem) { item in
+                PRDetailSheet(label: item.label)
+            }
+            .sheet(isPresented: $showingWeighInSheet) {
+                AddWeighInSheet(isPresented: $showingWeighInSheet)
+            }
+            .onTapGesture {
+                if isReordering {
+                    isReordering = false
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func trackingWidget(_ widget: TrackingWidgetID) -> some View {
+        switch widget {
+        case .weeklySets:
+            weeklySetsCard
+        case .workoutDays:
+            WorkoutHeatmapView(points: repository.allTimeActivity())
+        case .muscleTrend:
+            muscleTrendCard
+        case .currentWeekByMuscle:
+            muscleVolumeCard
+        case .bodyMetrics:
+            bodyMetricsCard
+        case .classicPRs:
+            prCard
         }
     }
 
     private var weeklySetsCard: some View {
-        let points = repository.weeklySetTrend(weeks: 8)
+        let points = repository.weeklySetTrend(weeks: 10)
 
         return VStack(alignment: .leading, spacing: 10) {
             Text("Sets Per Week")
@@ -53,9 +116,46 @@ struct TrackingView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Theme.surface)
+            Color.clear
         )
+        .appCard()
+    }
+
+    private var muscleTrendCard: some View {
+        let points = repository.muscleVolumeTrend(weeks: 8)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Volume By Muscle Group")
+                .font(.headline)
+
+            if points.isEmpty {
+                Text("No history yet")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            } else {
+                Chart(points) { point in
+                    LineMark(
+                        x: .value("Week", point.weekStart),
+                        y: .value("Sets", point.sets),
+                        series: .value("Muscle", point.muscleGroup)
+                    )
+                    .interpolationMethod(.catmullRom)
+
+                    PointMark(
+                        x: .value("Week", point.weekStart),
+                        y: .value("Sets", point.sets)
+                    )
+                    .symbolSize(26)
+                }
+                .frame(height: 210)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            Color.clear
+        )
+        .appCard()
     }
 
     private var muscleVolumeCard: some View {
@@ -76,14 +176,14 @@ struct TrackingView: View {
                         }
                     )
                 ) {
-                    ForEach(item.exercises) { exercise in
+                    ForEach(item.exerciseProgress) { progress in
                         Button {
-                            selectedExercise = exercise
+                            selectedExercise = progress.exercise
                         } label: {
                             HStack {
-                                Text(exercise.name.isEmpty ? "Untitled Exercise" : exercise.name)
+                                Text(progress.exercise.name.isEmpty ? "Untitled Exercise" : progress.exercise.name)
                                 Spacer()
-                                Text("\(exercise.sets ?? 0) st")
+                                Text("\(progress.doneSets) st")
                                     .foregroundStyle(Theme.secondaryText)
                             }
                         }
@@ -104,9 +204,82 @@ struct TrackingView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Theme.surface)
+            Color.clear
         )
+        .appCard()
+    }
+
+    private var bodyMetricsCard: some View {
+        let weightHistory = repository.bodyMetricHistory(kind: .scaleWeight, lastDays: 30)
+        let bodyFatHistory = repository.bodyMetricHistory(kind: .visualBodyFat, lastDays: 30)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Body Metrics")
+                    .font(.headline)
+                Spacer()
+                Button("Add Weigh-In") {
+                    showingWeighInSheet = true
+                    Haptics.selection()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Scale Weight")
+                    .font(.subheadline.weight(.semibold))
+
+                if weightHistory.isEmpty {
+                    Text("No weigh-ins yet")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                } else {
+                    Chart(weightHistory) { point in
+                        LineMark(
+                            x: .value("Date", point.recordedAt),
+                            y: .value("Weight", displayedWeight(point.value))
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Theme.accent)
+                    }
+                    .frame(height: 120)
+
+                    if let latest = weightHistory.last {
+                        Text("Latest: \(displayedWeight(latest.value), specifier: "%.1f") \(repository.unitSystem.title)")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Visual Body Fat")
+                    .font(.subheadline.weight(.semibold))
+
+                if bodyFatHistory.isEmpty {
+                    Text("No entries yet")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                } else {
+                    Chart(bodyFatHistory) { point in
+                        LineMark(
+                            x: .value("Date", point.recordedAt),
+                            y: .value("Visual Body Fat", point.value)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(.orange)
+                    }
+                    .frame(height: 120)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            Color.clear
+        )
+        .appCard()
     }
 
     private var prCard: some View {
@@ -117,27 +290,160 @@ struct TrackingView: View {
                 .font(.headline)
 
             ForEach(prs) { pr in
-                HStack {
-                    Text(pr.label)
-                    Spacer()
-                    if pr.bestLoad > 0 {
-                        Text("\(Int(pr.bestLoad))")
-                            .font(.headline.monospacedDigit())
-                        Text("kg*reps")
-                            .foregroundStyle(Theme.secondaryText)
-                    } else {
-                        Text("--")
-                            .foregroundStyle(Theme.secondaryText)
+                Button {
+                    selectedPRItem = SelectedPRItem(label: pr.label)
+                    Haptics.selection()
+                } label: {
+                    HStack {
+                        Text(pr.label)
+                        Spacer()
+                        if pr.bestLoad > 0 {
+                            Text("\(Int(pr.bestLoad))")
+                                .font(.headline.monospacedDigit())
+                            Text("kg*reps")
+                                .foregroundStyle(Theme.secondaryText)
+                        } else {
+                            Text("--")
+                                .foregroundStyle(Theme.secondaryText)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
+                .buttonStyle(.plain)
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Theme.surface)
+            Color.clear
         )
+        .appCard()
+    }
+
+    private func displayedWeight(_ kg: Double) -> Double {
+        switch repository.unitSystem {
+        case .kg:
+            return kg
+        case .lb:
+            return kg * 2.2046226218
+        }
+    }
+}
+
+private struct AddWeighInSheet: View {
+    @EnvironmentObject private var repository: WorkoutRepository
+    @Binding var isPresented: Bool
+
+    @State private var weight: String = ""
+    @State private var bodyFat: String = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Scale Weight") {
+                    TextField("\(repository.unitSystem.title.uppercased())", text: $weight)
+                        .keyboardType(.decimalPad)
+                }
+
+                Section("Visual Body Fat") {
+                    TextField("Optional", text: $bodyFat)
+                        .keyboardType(.decimalPad)
+                }
+            }
+            .navigationTitle("Add Weigh-In")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                        isPresented = false
+                        Haptics.success()
+                    }
+                    .disabled(Double(weight) == nil)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        guard let rawWeight = Double(weight) else { return }
+
+        let kgWeight: Double
+        switch repository.unitSystem {
+        case .kg:
+            kgWeight = rawWeight
+        case .lb:
+            kgWeight = rawWeight / 2.2046226218
+        }
+
+        repository.addBodyMetric(kind: .scaleWeight, value: kgWeight)
+
+        if let bf = Double(bodyFat), bf > 0 {
+            repository.addBodyMetric(kind: .visualBodyFat, value: bf)
+        }
+    }
+}
+
+private struct PRDetailSheet: View {
+    @EnvironmentObject private var repository: WorkoutRepository
+
+    let label: String
+
+    @State private var value = ""
+    @State private var note = ""
+
+    private var history: [PRPoint] {
+        repository.prHistory(for: label)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Progression") {
+                    if history.isEmpty {
+                        Text("No PR history yet")
+                            .foregroundStyle(Theme.secondaryText)
+                    } else {
+                        Chart(history) { point in
+                            LineMark(
+                                x: .value("Date", point.date),
+                                y: .value("PR", point.value)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(Theme.accent)
+
+                            PointMark(
+                                x: .value("Date", point.date),
+                                y: .value("PR", point.value)
+                            )
+                            .foregroundStyle(Theme.accent)
+                        }
+                        .frame(height: 180)
+                    }
+                }
+
+                Section("Add New PR") {
+                    TextField("kg*reps", text: $value)
+                        .keyboardType(.decimalPad)
+                    TextField("Optional note", text: $note)
+
+                    Button("Save PR") {
+                        if let parsed = Double(value), parsed > 0 {
+                            repository.addPRRecord(label: label, value: parsed, notes: note)
+                            value = ""
+                            note = ""
+                            Haptics.success()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(Double(value) == nil)
+                }
+            }
+            .navigationTitle(label)
+            .navigationBarTitleDisplayMode(.inline)
+            .listStyle(.insetGrouped)
+        }
     }
 }

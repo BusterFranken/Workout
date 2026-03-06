@@ -18,16 +18,22 @@
   - Snapshot metadata (`name`, timestamps).
 
 - `WorkoutTemplateExerciseEntity`
-  - Snapshot rows for each template exercise (muscle group + sets/reps/seconds/weight/count).
+  - Snapshot rows for each template exercise (muscle groups + note + weekday/custom + sets/reps/seconds/weight).
 
 - `WeeklyExerciseEntity`
   - Active-week rows shown in Workout tab.
-  - Check state, ordering, and editable fields live here.
+  - Check state, ordering, primary/secondary muscle groups, note, and editable fields live here.
   - Soft-delete via `removedAt`.
 
 - `CompletionLogEntity`
   - Immutable snapshots created on check-off.
-  - Stores sets/reps/seconds/weight/count/date so tracking remains stable even if exercise is edited later.
+  - Stores sets/reps/seconds/weight/date and secondary muscle groups so tracking remains stable over later edits.
+
+- `BodyMetricEntryEntity`
+  - Stores scale weight and visual body fat entries for tracking cards.
+
+- `PRRecordEntity`
+  - Manual PR entries used by classic PR overlays and history graphs.
 
 - `GoalCardEntity`
   - Top-of-screen widgets for goals.
@@ -45,4 +51,4 @@
 
 - **Sets done this week**: `sum(sets)` over checked `WeeklyExerciseEntity` rows.
 - **Muscle volume this week**: `sum(setsSnapshot)` over `CompletionLogEntity` filtered by muscle group + week.
-- **Load progression (`kg * reps`)**: `weightKgSnapshot * weightCountSnapshot * repsSnapshot`.
+- **Load progression (`kg * reps`)**: `weightKgSnapshot * repsSnapshot`.

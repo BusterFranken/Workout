@@ -34,7 +34,7 @@ struct ImportWorkoutSheet: View {
                 }
 
                 Section {
-                    Text("Each line becomes one exercise. Basic patterns like 5x8 and 16kgx2 are parsed.")
+                    Text("Each line becomes one exercise. Basic patterns like 5x8 and 16kg are parsed.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
                 }

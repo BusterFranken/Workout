@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -26,6 +26,7 @@
 		8393C667748C6EE4BFCE7953 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50465CE3326E0C11DB59862D /* WorkoutTrackerApp.swift */; };
 		9EDB5C38F45BFB6283172927 /* SeedCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 013907EFC181D68DEC8DD62F /* SeedCatalog.swift */; };
 		AFBE7D214DD536E692EEE7B6 /* WorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CAFADF66B8E44B86373CE9 /* WorkoutRepository.swift */; };
+		B23428442F534ED700DFEE0C /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B23428432F534ED700DFEE0C /* Haptics.swift */; };
 		F3131CAC1B6CE3075C85101F /* WorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30383CBEAC1E46BF7ED99F98 /* WorkoutView.swift */; };
 		F80B1EBF935DB5E6EF5934DE /* PersistedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6038DAF640EB750D1F5077 /* PersistedModels.swift */; };
 /* End PBXBuildFile section */
@@ -46,6 +47,7 @@
 		81FD0E650335D16EE994FB01 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9F9D6107C917C61A37DD4EA5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		AB5AF9C7A0100585DE25D1C6 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		B23428432F534ED700DFEE0C /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		B663A435FEF30C1162EAA7E8 /* TrackingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingView.swift; sourceTree = "<group>"; };
 		C442F95230DD6A4CFFCFAE21 /* WorkoutHeatmapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutHeatmapView.swift; sourceTree = "<group>"; };
 		CBD88EDCF118FC94501D8E8E /* GoalCardStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCardStripView.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 			children = (
 				69DBCC1C37FAF8A8D794D023 /* Date+Week.swift */,
 				E642C2FF7DEB5EBF1EC6C0FA /* Formatting.swift */,
+				B23428432F534ED700DFEE0C /* Haptics.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -219,7 +222,6 @@
 			);
 			mainGroup = AD6248B3D6F5FB51D1B71926;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -235,6 +237,7 @@
 			files = (
 				0BA455EB8D0D0052AAA142AD /* AppNavigationState.swift in Sources */,
 				65BA82AC7F37CC60918C8805 /* Date+Week.swift in Sources */,
+				B23428442F534ED700DFEE0C /* Haptics.swift in Sources */,
 				3B0C3A814C0AE540075B2539 /* ExerciseDetailSheet.swift in Sources */,
 				019837CA22BF1BA07D9DAA3B /* ExerciseEditorSheet.swift in Sources */,
 				64B04421AEF2CE8C2C8F1E5D /* ExerciseRowView.swift in Sources */,

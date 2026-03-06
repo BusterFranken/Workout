@@ -6,7 +6,6 @@ struct ParsedImportLine {
     var reps: Int?
     var seconds: Int?
     var weightKg: Double?
-    var weightCount: Int?
 }
 
 enum WorkoutImportParser {
@@ -27,7 +26,7 @@ enum WorkoutImportParser {
     }
 
     private static func parseLine(_ line: String) -> ParsedImportLine {
-        var parsed = ParsedImportLine(name: line, sets: nil, reps: nil, seconds: nil, weightKg: nil, weightCount: nil)
+        var parsed = ParsedImportLine(name: line, sets: nil, reps: nil, seconds: nil, weightKg: nil)
 
         let normalized = line.lowercased().replacingOccurrences(of: " ", with: "")
 
@@ -47,13 +46,9 @@ enum WorkoutImportParser {
             }
         }
 
-        if let weightMatch = normalized.range(of: #"(\d+(?:\.\d+)?)kg(?:x(\d+))?"#, options: .regularExpression) {
-            let rawWeight = String(normalized[weightMatch])
-            let parts = rawWeight.replacingOccurrences(of: "kg", with: "").split(separator: "x")
-            parsed.weightKg = Double(parts.first ?? "")
-            if parts.count > 1 {
-                parsed.weightCount = Int(parts[1])
-            }
+        if let weightMatch = normalized.range(of: #"(\d+(?:\.\d+)?)kg"#, options: .regularExpression) {
+            let rawWeight = String(normalized[weightMatch]).replacingOccurrences(of: "kg", with: "")
+            parsed.weightKg = Double(rawWeight)
         }
 
         parsed.name = stripMetrics(from: line)

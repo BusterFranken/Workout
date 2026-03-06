@@ -6,27 +6,31 @@ struct WorkoutView: View {
 
     @State private var isGoalEditMode = false
     @State private var isExerciseReorderMode = false
+    @State private var activeDragExerciseID: UUID?
 
     @State private var showingNewWeekWarning = false
     @State private var showingDeleteDialog = false
     @State private var showingSaveSheet = false
     @State private var showingAddGroupSheet = false
     @State private var showingSetGoalEditor = false
+    @State private var showingWorkoutNameEditor = false
 
     @State private var newTemplateName = ""
     @State private var newGroupName = ""
+    @State private var editedWorkoutName = ""
 
     @State private var selectedExerciseForEditor: WeeklyExerciseEntity?
     @State private var selectedExerciseForDetails: WeeklyExerciseEntity?
-    @State private var selectedGroupForRename: MuscleGroupEntity?
+    @State private var selectedHeaderForRename: SectionHeaderEntity?
 
     @State private var showDoneSection = true
     @State private var pendingDeleteAfterSave = false
+    @State private var pendingNewExerciseID: UUID?
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
                     header
 
                     GoalCardStripView(
@@ -39,21 +43,23 @@ struct WorkoutView: View {
                         }
                     }
 
-                    if repository.activeWeeklyExercises.isEmpty {
+                    if repository.workoutSections.isEmpty && repository.activeWeeklyExercises.isEmpty {
                         emptyStateCard
                     } else {
-                        VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 14) {
                             ForEach(repository.workoutSections) { section in
                                 MuscleGroupSectionView(
-                                    group: section.group,
-                                    rows: section.pending,
-                                    doneCount: repository.doneCountForMuscle(section.group.id),
+                                    section: section,
                                     isReordering: isExerciseReorderMode,
-                                    onRename: {
-                                        selectedGroupForRename = section.group
+                                    activeDragExerciseID: activeDragExerciseID,
+                                    onRenameSection: {
+                                        if let header = section.sectionHeader {
+                                            selectedHeaderForRename = header
+                                        }
                                     },
                                     onAddExercise: {
-                                        let row = repository.addExercise(to: section.group)
+                                        let row = repository.addExercise(to: section)
+                                        pendingNewExerciseID = row.id
                                         selectedExerciseForEditor = row
                                     },
                                     onRowEdit: { row in
@@ -62,19 +68,41 @@ struct WorkoutView: View {
                                     onRowDetail: { row in
                                         selectedExerciseForDetails = row
                                     },
-                                    onDragStart: { _ in
+                                    onRowDelete: { row in
+                                        repository.removeExerciseFromWeek(row)
+                                    },
+                                    onMarkDone: { row in
+                                        repository.toggleExerciseCompleted(row)
+                                    },
+                                    onDragStart: { sourceID in
                                         withAnimation(.spring) {
-                                            isExerciseReorderMode = true
+                                            activeDragExerciseID = sourceID
                                         }
+                                        Haptics.soft()
                                     },
-                                    onDropOnGroup: { sourceID, groupID in
-                                        moveExercise(sourceID: sourceID, to: groupID)
+                                    onDropOnSection: { sourceID, sectionID in
+                                        moveExercise(sourceID: sourceID, toSectionID: sectionID, targetIndex: nil)
+                                        endExerciseReorderMode()
                                     },
-                                    onDropOnRow: { sourceID, targetRow in
-                                        moveExercise(sourceID: sourceID, onto: targetRow)
+                                    onDropOnRow: { sourceID, targetRow, insertAfter in
+                                        let target = max(0, targetRow.orderIndex + (insertAfter ? 1 : 0))
+                                        moveExercise(sourceID: sourceID, toSectionID: section.id, targetIndex: target)
+                                        endExerciseReorderMode()
                                     }
                                 )
                             }
+
+                            if repository.shouldShowAddHeadingHint {
+                                Button {
+                                    repository.addHeadingForCurrentView()
+                                    Haptics.selection()
+                                } label: {
+                                    Label("Add heading", systemImage: "plus")
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.vertical, 8)
+                                }
+                            }
+
                         }
 
                         doneSection
@@ -83,33 +111,58 @@ struct WorkoutView: View {
                 .padding()
             }
             .background(Theme.background)
-            .navigationTitle("Workout")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Add Muscle Group", systemImage: "plus") {
-                            showingAddGroupSheet = true
-                        }
-
-                        Button("Save This Workout To Library", systemImage: "square.and.arrow.down") {
-                            newTemplateName = "Week of \(Date().isoShort())"
-                            showingSaveSheet = true
-                        }
-
-                        Button("New Week", systemImage: "arrow.clockwise") {
-                            showingNewWeekWarning = true
-                        }
-
-                        Divider()
-
-                        Button("Delete Weekly Workout", systemImage: "trash", role: .destructive) {
-                            showingDeleteDialog = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.title3)
-                    }
+                    menu
                 }
+            }
+            .sheet(item: $selectedExerciseForEditor) { row in
+                ExerciseEditorSheet(
+                    isPresented: Binding(
+                        get: { selectedExerciseForEditor != nil },
+                        set: { newValue in if !newValue { selectedExerciseForEditor = nil } }
+                    ),
+                    exercise: row,
+                    isNewExercise: row.id == pendingNewExerciseID,
+                    onCancelNew: {
+                        if row.id == pendingNewExerciseID {
+                            repository.removeExerciseFromWeek(row)
+                            pendingNewExerciseID = nil
+                        }
+                    },
+                    onSave: {
+                        if row.id == pendingNewExerciseID {
+                            pendingNewExerciseID = nil
+                        }
+                    }
+                )
+            }
+            .sheet(item: $selectedExerciseForDetails) { row in
+                ExerciseDetailSheet(exercise: row)
+            }
+            .sheet(item: $selectedHeaderForRename) { header in
+                RenameHeaderSheet(
+                    header: header,
+                    isPresented: Binding(
+                        get: { selectedHeaderForRename != nil },
+                        set: { newValue in if !newValue { selectedHeaderForRename = nil } }
+                    )
+                )
+            }
+            .sheet(isPresented: $showingAddGroupSheet) {
+                addGroupSheet
+            }
+            .sheet(isPresented: $showingSaveSheet) {
+                saveWorkoutSheet
+            }
+            .sheet(isPresented: $showingSetGoalEditor) {
+                SetGoalEditorSheet(
+                    value: repository.settings?.weeklySetTarget ?? SeedCatalog.defaultWeeklySetGoal,
+                    isPresented: $showingSetGoalEditor
+                )
+            }
+            .sheet(isPresented: $showingWorkoutNameEditor) {
+                workoutNameSheet
             }
             .confirmationDialog(
                 "Delete weekly workout?",
@@ -136,103 +189,87 @@ struct WorkoutView: View {
             } message: {
                 Text("This will uncheck all exercises and create a clean week while preserving history.")
             }
-            .sheet(item: $selectedExerciseForEditor) { row in
-                ExerciseEditorSheet(isPresented: Binding(
-                    get: { selectedExerciseForEditor != nil },
-                    set: { newValue in if !newValue { selectedExerciseForEditor = nil } }
-                ), exercise: row)
-            }
-            .sheet(item: $selectedExerciseForDetails) { row in
-                ExerciseDetailSheet(exercise: row)
-            }
-            .sheet(item: $selectedGroupForRename) { group in
-                RenameGroupSheet(
-                    group: group,
-                    isPresented: Binding(
-                        get: { selectedGroupForRename != nil },
-                        set: { newValue in if !newValue { selectedGroupForRename = nil } }
-                    )
-                )
-            }
-            .sheet(isPresented: $showingAddGroupSheet) {
-                NavigationStack {
-                    Form {
-                        TextField("Muscle group name", text: $newGroupName)
-                    }
-                    .navigationTitle("Add Muscle Group")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { showingAddGroupSheet = false }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Add") {
-                                repository.addMuscleGroup(name: newGroupName)
-                                newGroupName = ""
-                                showingAddGroupSheet = false
-                            }
-                            .disabled(newGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSaveSheet) {
-                NavigationStack {
-                    Form {
-                        TextField("Workout name", text: $newTemplateName)
-                    }
-                    .navigationTitle("Save Workout")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") {
-                                pendingDeleteAfterSave = false
-                                showingSaveSheet = false
-                            }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") {
-                                repository.saveWorkoutToLibrary(name: newTemplateName)
-                                if pendingDeleteAfterSave {
-                                    repository.deleteCurrentWeeklyWorkout()
-                                }
-                                pendingDeleteAfterSave = false
-                                showingSaveSheet = false
-                            }
-                            .disabled(newTemplateName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSetGoalEditor) {
-                SetGoalEditorSheet(
-                    value: repository.settings?.weeklySetTarget ?? SeedCatalog.defaultWeeklySetGoal,
-                    isPresented: $showingSetGoalEditor
-                )
-            }
             .onTapGesture {
                 if isGoalEditMode {
                     isGoalEditMode = false
                 }
                 if isExerciseReorderMode {
-                    isExerciseReorderMode = false
+                    endExerciseReorderMode()
                 }
             }
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(Date().formatted(date: .complete, time: .omitted).uppercased())
+        VStack(alignment: .leading, spacing: 6) {
+            Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
                 .font(.dashboardDate)
                 .foregroundStyle(Theme.secondaryText)
 
             Text("WORKOUT")
                 .font(.dashboardTitle)
+                .tracking(1.0)
 
-            if let settings = repository.settings {
-                Text("Week of \(settings.activeWeekStartDate.isoShort())")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
+            HStack(spacing: 8) {
+                Text(repository.activeWorkoutName)
+                    .font(.headline)
+                Button {
+                    editedWorkoutName = repository.activeWorkoutName
+                    showingWorkoutNameEditor = true
+                    Haptics.selection()
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.footnote.weight(.semibold))
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
+
+    private var menu: some View {
+        Menu {
+            if repository.workoutViewMode == .muscleGroups {
+                Button("Add New Header", systemImage: "plus") {
+                    showingAddGroupSheet = true
+                    Haptics.selection()
+                }
+            }
+
+            Menu("Change View") {
+                ForEach(WorkoutViewMode.allCases) { mode in
+                    Button {
+                        repository.updateWorkoutViewMode(mode)
+                        Haptics.selection()
+                    } label: {
+                        if repository.workoutViewMode == mode {
+                            Label(mode.title, systemImage: "checkmark")
+                        } else {
+                            Text(mode.title)
+                        }
+                    }
+                }
+            }
+
+            Button("Save This Workout To Library", systemImage: "square.and.arrow.down") {
+                newTemplateName = repository.activeWorkoutName
+                showingSaveSheet = true
+                Haptics.selection()
+            }
+
+            Button("New Week", systemImage: "arrow.clockwise") {
+                showingNewWeekWarning = true
+                Haptics.selection()
+            }
+
+            Divider()
+
+            Button("Delete Weekly Workout", systemImage: "trash", role: .destructive) {
+                showingDeleteDialog = true
+                Haptics.warning()
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.title3)
         }
     }
 
@@ -241,20 +278,28 @@ struct WorkoutView: View {
             Text("No Weekly Workout Yet")
                 .font(.title3.weight(.bold))
 
-            Text("Start by adding a workout template or a few exercises from your library.")
+            Text("Add a template from Library, or start with one editable heading.")
                 .foregroundStyle(Theme.secondaryText)
 
-            Button("+ Add workout or exercises") {
-                navigation.selectedTab = .library
+            HStack(spacing: 10) {
+                Button("+ Add workout or exercises") {
+                    navigation.selectedTab = .library
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Start from scratch") {
+                    repository.startFromScratchWorkout()
+                    Haptics.success()
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Theme.surface)
+            Color.clear
         )
+        .appCard(cornerRadius: 18)
     }
 
     private var doneSection: some View {
@@ -275,62 +320,133 @@ struct WorkoutView: View {
 
             if showDoneSection {
                 ForEach(repository.doneExercises) { row in
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.square.fill")
-                            .foregroundStyle(Theme.accent)
+                    Button {
+                        repository.toggleExerciseCompleted(row)
+                        Haptics.selection()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Theme.accent)
 
-                        Text(row.name)
-                            .strikethrough()
-                            .foregroundStyle(Theme.secondaryText)
+                            Text(row.name)
+                                .strikethrough()
+                                .foregroundStyle(Theme.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Spacer()
-
-                        Text("\(row.sets ?? 0) st")
-                            .font(.caption)
-                            .foregroundStyle(Theme.secondaryText)
+                            Text("\(row.sets ?? 0) st")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("View Details") {
+                            selectedExerciseForDetails = row
+                        }
+                    }
                 }
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Theme.surface)
+            Color.clear
         )
+        .appCard(cornerRadius: 18)
     }
 
-    private func moveExercise(sourceID: UUID, to groupID: UUID) {
-        guard let source = repository.activeWeeklyExercises.first(where: { $0.id == sourceID }),
-              let group = repository.muscleGroups.first(where: { $0.id == groupID })
-        else {
-            return
+    private var addGroupSheet: some View {
+        NavigationStack {
+            Form {
+                TextField("Header name", text: $newGroupName)
+            }
+            .navigationTitle("Add New Header")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showingAddGroupSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        repository.addHeader(title: newGroupName)
+                        newGroupName = ""
+                        showingAddGroupSheet = false
+                        Haptics.success()
+                    }
+                    .disabled(newGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
         }
-
-        let targetIndex = repository.activeWeeklyExercises
-            .filter { $0.muscleGroupID == groupID }
-            .count
-
-        repository.moveExercise(source, to: group, at: targetIndex)
     }
 
-    private func moveExercise(sourceID: UUID, onto targetRow: WeeklyExerciseEntity) {
-        guard let source = repository.activeWeeklyExercises.first(where: { $0.id == sourceID }),
-              let groupID = targetRow.muscleGroupID,
-              let group = repository.muscleGroups.first(where: { $0.id == groupID })
-        else {
-            return
+    private var workoutNameSheet: some View {
+        NavigationStack {
+            Form {
+                TextField("Workout name", text: $editedWorkoutName)
+            }
+            .navigationTitle("Workout Name")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showingWorkoutNameEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        repository.updateWorkoutName(editedWorkoutName)
+                        showingWorkoutNameEditor = false
+                        Haptics.success()
+                    }
+                    .disabled(editedWorkoutName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
         }
+    }
 
-        repository.moveExercise(source, to: group, at: targetRow.orderIndex)
+    private var saveWorkoutSheet: some View {
+        NavigationStack {
+            Form {
+                TextField("Workout name", text: $newTemplateName)
+            }
+            .navigationTitle("Save Workout")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        pendingDeleteAfterSave = false
+                        showingSaveSheet = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        repository.saveWorkoutToLibrary(name: newTemplateName)
+                        if pendingDeleteAfterSave {
+                            repository.deleteCurrentWeeklyWorkout()
+                        }
+                        pendingDeleteAfterSave = false
+                        showingSaveSheet = false
+                        Haptics.success()
+                    }
+                    .disabled(newTemplateName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func moveExercise(sourceID: UUID, toSectionID sectionID: String, targetIndex: Int?) {
+        let index = targetIndex ?? repository.workoutSections.first(where: { $0.id == sectionID })?.rows.count ?? 0
+        repository.moveExercise(sourceID: sourceID, toSectionID: sectionID, at: index)
+    }
+
+    private func endExerciseReorderMode() {
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
+            activeDragExerciseID = nil
+            isExerciseReorderMode = false
+        }
     }
 }
 
-private struct RenameGroupSheet: View {
+private struct RenameHeaderSheet: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
-    let group: MuscleGroupEntity
+    let header: SectionHeaderEntity
     @Binding var isPresented: Bool
 
     @State private var name: String = ""
@@ -338,22 +454,22 @@ private struct RenameGroupSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Group name", text: $name)
+                TextField("Header name", text: $name)
             }
-            .navigationTitle("Rename Group")
+            .navigationTitle("Rename Header")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { isPresented = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        repository.renameMuscleGroup(group, to: name)
+                        repository.renameHeader(header, to: name)
                         isPresented = false
                     }
                 }
             }
         }
-        .onAppear { name = group.name }
+        .onAppear { name = header.title }
     }
 }
 

@@ -22,3 +22,5 @@ fastlane/test_output/
 Pods/
 Carthage/Build/
 SourcePackages/
+
+.claude/worktrees/

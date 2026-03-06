@@ -38,13 +38,16 @@ struct GoalCardStripView: View {
                         }
                     }
 
-                    if isEditing && repository.activeGoalSnapshots.count < 3 {
+                    if repository.activeGoalSnapshots.count < 3 {
                         Button {
                             showingAddGoal = true
+                            Haptics.soft()
                         } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 30, weight: .bold))
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(Theme.primaryText)
+                                .padding(8)
+                                .background(Circle().fill(Theme.mutedSurface))
                         }
                         .buttonStyle(.plain)
                     }
@@ -100,14 +103,7 @@ private struct GoalCardView: View {
         }
         .padding(14)
         .frame(width: 165, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Theme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
-        )
+        .appCard(cornerRadius: 18)
         .wiggle(isEditing)
     }
 }
@@ -126,11 +122,11 @@ private struct AddGoalSheet: View {
             Form {
                 Section("Metric") {
                     Picker("Type", selection: $metric) {
-                        ForEach([GoalMetricType.exercisesDone, .muscleGroupSets], id: \.self) { item in
+                        ForEach([GoalMetricType.totalSets, .exercisesDone, .muscleGroupSets, .workoutDays], id: \.self) { item in
                             Text(item.title).tag(item)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
 
                     if metric == .muscleGroupSets {
                         Picker("Muscle", selection: $selectedMuscleGroupID) {
@@ -157,6 +153,8 @@ private struct AddGoalSheet: View {
                     Button("Add") {
                         let title: String
                         switch metric {
+                        case .totalSets:
+                            title = "Sets"
                         case .exercisesDone:
                             title = "Exercises"
                         case .muscleGroupSets:
@@ -166,8 +164,8 @@ private struct AddGoalSheet: View {
                             } else {
                                 title = "Muscle Sets"
                             }
-                        case .totalSets:
-                            title = "Sets"
+                        case .workoutDays:
+                            title = "Workout Days"
                         }
 
                         repository.addCustomGoal(

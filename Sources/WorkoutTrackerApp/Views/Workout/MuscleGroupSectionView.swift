@@ -43,13 +43,6 @@ struct MuscleGroupSectionView: View {
                 }
 
                 Spacer()
-
-                HStack(spacing: 10) {
-                    metricHeaderLabel("Sets")
-                    metricHeaderLabel("Reps")
-                    metricHeaderLabel("KG")
-                }
-                .padding(.trailing, 12)
             }
             .foregroundStyle(Theme.primaryText)
 
@@ -134,12 +127,6 @@ struct MuscleGroupSectionView: View {
                 onDropOnSection: onDropOnSection
             )
         )
-    }
-
-    private func metricHeaderLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(Theme.secondaryText)
     }
 
     private var insertionLine: some View {

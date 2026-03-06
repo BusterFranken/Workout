@@ -20,7 +20,7 @@ struct WorkoutView: View {
 
     @State private var selectedExerciseForEditor: WeeklyExerciseEntity?
     @State private var selectedExerciseForDetails: WeeklyExerciseEntity?
-    @State private var selectedGroupForRename: MuscleGroupEntity?
+    @State private var selectedHeaderForRename: SectionHeaderEntity?
 
     @State private var showDoneSection = true
     @State private var pendingDeleteAfterSave = false
@@ -51,8 +51,8 @@ struct WorkoutView: View {
                                     section: section,
                                     isReordering: isExerciseReorderMode,
                                     onRenameSection: {
-                                        if let group = section.muscleGroup {
-                                            selectedGroupForRename = group
+                                        if let header = section.sectionHeader {
+                                            selectedHeaderForRename = header
                                         }
                                     },
                                     onAddExercise: {
@@ -140,12 +140,12 @@ struct WorkoutView: View {
             .sheet(item: $selectedExerciseForDetails) { row in
                 ExerciseDetailSheet(exercise: row)
             }
-            .sheet(item: $selectedGroupForRename) { group in
-                RenameGroupSheet(
-                    group: group,
+            .sheet(item: $selectedHeaderForRename) { header in
+                RenameHeaderSheet(
+                    header: header,
                     isPresented: Binding(
-                        get: { selectedGroupForRename != nil },
-                        set: { newValue in if !newValue { selectedGroupForRename = nil } }
+                        get: { selectedHeaderForRename != nil },
+                        set: { newValue in if !newValue { selectedHeaderForRename = nil } }
                     )
                 )
             }
@@ -229,7 +229,7 @@ struct WorkoutView: View {
     private var menu: some View {
         Menu {
             if repository.workoutViewMode == .muscleGroups {
-                Button("Add Muscle Group", systemImage: "plus") {
+                Button("Add New Header", systemImage: "plus") {
                     showingAddGroupSheet = true
                     Haptics.selection()
                 }
@@ -321,7 +321,8 @@ struct WorkoutView: View {
             if showDoneSection {
                 ForEach(repository.doneExercises) { row in
                     Button {
-                        selectedExerciseForDetails = row
+                        repository.toggleExerciseCompleted(row)
+                        Haptics.selection()
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "checkmark.circle.fill")
@@ -339,6 +340,11 @@ struct WorkoutView: View {
                         .padding(.vertical, 4)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("View Details") {
+                            selectedExerciseForDetails = row
+                        }
+                    }
                 }
             }
         }
@@ -353,16 +359,16 @@ struct WorkoutView: View {
     private var addGroupSheet: some View {
         NavigationStack {
             Form {
-                TextField("Muscle group name", text: $newGroupName)
+                TextField("Header name", text: $newGroupName)
             }
-            .navigationTitle("Add Muscle Group")
+            .navigationTitle("Add New Header")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { showingAddGroupSheet = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        repository.addMuscleGroup(name: newGroupName)
+                        repository.addHeader(title: newGroupName)
                         newGroupName = ""
                         showingAddGroupSheet = false
                         Haptics.success()
@@ -430,10 +436,10 @@ struct WorkoutView: View {
     }
 }
 
-private struct RenameGroupSheet: View {
+private struct RenameHeaderSheet: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
-    let group: MuscleGroupEntity
+    let header: SectionHeaderEntity
     @Binding var isPresented: Bool
 
     @State private var name: String = ""
@@ -441,22 +447,22 @@ private struct RenameGroupSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Group name", text: $name)
+                TextField("Header name", text: $name)
             }
-            .navigationTitle("Rename Group")
+            .navigationTitle("Rename Header")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { isPresented = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        repository.renameMuscleGroup(group, to: name)
+                        repository.renameHeader(header, to: name)
                         isPresented = false
                     }
                 }
             }
         }
-        .onAppear { name = group.name }
+        .onAppear { name = header.title }
     }
 }
 

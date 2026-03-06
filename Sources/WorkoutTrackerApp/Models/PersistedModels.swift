@@ -186,6 +186,7 @@ final class WorkoutTemplateExerciseEntity {
     var reps: Int?
     var seconds: Int?
     var weightKg: Double?
+    var headerID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -202,7 +203,8 @@ final class WorkoutTemplateExerciseEntity {
         sets: Int?,
         reps: Int?,
         seconds: Int?,
-        weightKg: Double?
+        weightKg: Double?,
+        headerID: UUID? = nil
     ) {
         self.id = id
         self.templateID = templateID
@@ -219,6 +221,7 @@ final class WorkoutTemplateExerciseEntity {
         self.reps = reps
         self.seconds = seconds
         self.weightKg = weightKg
+        self.headerID = headerID
     }
 }
 
@@ -241,6 +244,7 @@ final class WeeklyExerciseEntity {
     var weightKg: Double?
     var completedAt: Date?
     var removedAt: Date?
+    var headerID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -259,7 +263,8 @@ final class WeeklyExerciseEntity {
         seconds: Int?,
         weightKg: Double?,
         completedAt: Date? = nil,
-        removedAt: Date? = nil
+        removedAt: Date? = nil,
+        headerID: UUID? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -278,6 +283,7 @@ final class WeeklyExerciseEntity {
         self.weightKg = weightKg
         self.completedAt = completedAt
         self.removedAt = removedAt
+        self.headerID = headerID
     }
 }
 
@@ -411,6 +417,32 @@ final class PRRecordEntity {
         self.value = value
         self.recordedAt = recordedAt
         self.notes = notes
+    }
+}
+
+@Model
+final class SectionHeaderEntity {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var orderIndex: Int
+    var weekStartDate: Date?
+    var templateID: UUID?
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        orderIndex: Int,
+        weekStartDate: Date? = nil,
+        templateID: UUID? = nil,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.title = title
+        self.orderIndex = orderIndex
+        self.weekStartDate = weekStartDate
+        self.templateID = templateID
+        self.createdAt = createdAt
     }
 }
 

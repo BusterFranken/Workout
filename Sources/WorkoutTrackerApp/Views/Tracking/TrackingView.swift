@@ -342,12 +342,12 @@ private struct AddWeighInSheet: View {
             Form {
                 Section("Scale Weight") {
                     TextField("\(repository.unitSystem.title.uppercased())", text: $weight)
-                        .keyboardType(.decimalPad)
+                        .decimalPadKeyboardIfAvailable()
                 }
 
                 Section("Visual Body Fat") {
                     TextField("Optional", text: $bodyFat)
-                        .keyboardType(.decimalPad)
+                        .decimalPadKeyboardIfAvailable()
                 }
             }
             .navigationTitle("Add Weigh-In")
@@ -426,7 +426,7 @@ private struct PRDetailSheet: View {
 
                 Section("Add New PR") {
                     TextField("kg*reps", text: $value)
-                        .keyboardType(.decimalPad)
+                        .decimalPadKeyboardIfAvailable()
                     TextField("Optional note", text: $note)
 
                     Button("Save PR") {
@@ -442,8 +442,37 @@ private struct PRDetailSheet: View {
                 }
             }
             .navigationTitle(label)
-            .navigationBarTitleDisplayMode(.inline)
-            .listStyle(.insetGrouped)
+            .inlineNavigationTitleDisplayModeIfAvailable()
+            .platformInsetGroupedListStyle()
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func platformInsetGroupedListStyle() -> some View {
+        #if os(iOS)
+        self.listStyle(.insetGrouped)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func inlineNavigationTitleDisplayModeIfAvailable() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func decimalPadKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.decimalPad)
+        #else
+        self
+        #endif
     }
 }

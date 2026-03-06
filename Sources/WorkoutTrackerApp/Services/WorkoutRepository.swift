@@ -681,6 +681,10 @@ final class WorkoutRepository: ObservableObject {
             .filter { $0.templateID == template.id }
             .sorted { $0.orderIndex < $1.orderIndex }
 
+        // Local cache for the fallback path: prevents creating a separate header per exercise
+        // when template exercises lack headerID (sectionHeaders is stale until saveAndRefresh).
+        var fallbackHeaderCache: [String: UUID] = [:]
+
         for row in rows {
             if behavior == .addAllUnique {
                 let key = normalizedKey(row.name)
@@ -698,9 +702,17 @@ final class WorkoutRepository: ObservableObject {
             if let templateHeaderID = row.headerID, let mapped = headerMapping[templateHeaderID] {
                 newHeaderID = mapped
             } else {
-                // Old template without headerIDs — create header from muscle group name
-                let header = ensureWeeklyHeader(titled: row.muscleGroupName)
-                newHeaderID = header.id
+                // Old template without headerIDs — create header from muscle group name.
+                // Use a local cache keyed by normalized name so all exercises in the same
+                // muscle group share one header (activeWeeklyHeaders is stale until saveAndRefresh).
+                let normalizedName = normalizeGroupName(row.muscleGroupName)
+                if let cachedID = fallbackHeaderCache[normalizedName] {
+                    newHeaderID = cachedID
+                } else {
+                    let header = ensureWeeklyHeader(titled: row.muscleGroupName)
+                    newHeaderID = header.id
+                    fallbackHeaderCache[normalizedName] = header.id
+                }
             }
 
             let nextIndex = activeWeeklyExercises
@@ -1122,29 +1134,38 @@ final class WorkoutRepository: ObservableObject {
     }
 
     private func migrateToSectionHeadersIfNeeded() {
-        let needsMigration = activeWeeklyExercises.contains { $0.headerID == nil }
-        guard needsMigration && !activeWeeklyExercises.isEmpty else { return }
+        var didChange = false
 
-        let groupIDs = Set(activeWeeklyExercises.filter { $0.headerID == nil }.compactMap(\.muscleGroupID))
+        // Migrate weekly exercises if any lack a headerID
+        let weeklyNeedsMigration = !activeWeeklyExercises.isEmpty
+            && activeWeeklyExercises.contains { $0.headerID == nil }
 
-        for groupID in groupIDs {
-            guard let group = muscleGroups.first(where: { $0.id == groupID }) else { continue }
+        if weeklyNeedsMigration {
+            let groupIDs = Set(activeWeeklyExercises.filter { $0.headerID == nil }.compactMap(\.muscleGroupID))
 
-            let header = SectionHeaderEntity(
-                title: group.name,
-                orderIndex: group.orderIndex,
-                weekStartDate: activeWeekStart
-            )
-            context.insert(header)
+            for groupID in groupIDs {
+                guard let group = muscleGroups.first(where: { $0.id == groupID }) else { continue }
 
-            for exercise in activeWeeklyExercises where exercise.muscleGroupID == groupID && exercise.headerID == nil {
-                exercise.headerID = header.id
+                let header = SectionHeaderEntity(
+                    title: group.name,
+                    orderIndex: group.orderIndex,
+                    weekStartDate: activeWeekStart
+                )
+                context.insert(header)
+
+                for exercise in activeWeeklyExercises where exercise.muscleGroupID == groupID && exercise.headerID == nil {
+                    exercise.headerID = header.id
+                }
             }
+            didChange = true
         }
 
-        // Migrate templates
+        // Migrate templates independently — runs even when no weekly exercises need migration
+        // (e.g. on a fresh install where the seed template exists but has no SectionHeaderEntity records)
         for template in workoutTemplates {
             let templateRows = templateExercises.filter { $0.templateID == template.id && $0.headerID == nil }
+            guard !templateRows.isEmpty else { continue }
+
             let templateGroupIDs = Set(templateRows.compactMap(\.muscleGroupID))
 
             for groupID in templateGroupIDs {
@@ -1161,7 +1182,10 @@ final class WorkoutRepository: ObservableObject {
                     row.headerID = header.id
                 }
             }
+            didChange = true
         }
+
+        guard didChange else { return }
 
         do {
             try context.save()

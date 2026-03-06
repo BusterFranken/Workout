@@ -49,6 +49,7 @@ struct MuscleGroupSectionView: View {
                     metricHeaderLabel("Reps")
                     metricHeaderLabel("KG")
                 }
+                .padding(.trailing, 12)
             }
             .foregroundStyle(Theme.primaryText)
 

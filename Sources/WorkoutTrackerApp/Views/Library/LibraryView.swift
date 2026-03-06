@@ -97,7 +97,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .libraryGroupedListStyle()
             .navigationTitle("Library")
             .sheet(isPresented: $showingImportSheet) {
                 ImportWorkoutSheet(isPresented: $showingImportSheet)
@@ -149,7 +149,7 @@ struct LibraryView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(Theme.secondaryText)
             TextField("Search by name, muscle group, or synonym", text: $searchText)
-                .textInputAutocapitalization(.never)
+                .neverAutocapitalizeIfAvailable()
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
@@ -270,8 +270,8 @@ private struct WorkoutTemplateDetailSheet: View {
                 }
             }
             .navigationTitle(template.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .listStyle(.insetGrouped)
+            .inlineNavigationTitleDisplayModeIfAvailable()
+            .libraryGroupedListStyle()
         }
     }
 
@@ -320,8 +320,37 @@ private struct ExerciseLibraryDetailSheet: View {
                 }
             }
             .navigationTitle(exercise.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .listStyle(.insetGrouped)
+            .inlineNavigationTitleDisplayModeIfAvailable()
+            .libraryGroupedListStyle()
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func inlineNavigationTitleDisplayModeIfAvailable() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func libraryGroupedListStyle() -> some View {
+        #if os(iOS)
+        self.listStyle(.insetGrouped)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func neverAutocapitalizeIfAvailable() -> some View {
+        #if os(iOS)
+        self.textInputAutocapitalization(.never)
+        #else
+        self
+        #endif
     }
 }

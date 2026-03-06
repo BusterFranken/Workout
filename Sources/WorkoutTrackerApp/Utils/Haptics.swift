@@ -12,22 +12,20 @@ enum Haptics {
     }
 
     static func success() {
-        notify(.success)
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
     }
 
     static func warning() {
-        notify(.warning)
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        #endif
     }
 
     static func soft() {
         #if canImport(UIKit)
         UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-        #endif
-    }
-
-    private static func notify(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(type)
         #endif
     }
 }

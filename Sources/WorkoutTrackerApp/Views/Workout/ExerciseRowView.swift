@@ -349,7 +349,7 @@ private struct MetricBubble: View {
 
     var body: some View {
         TextField(placeholder, text: $text)
-            .keyboardType(.numbersAndPunctuation)
+            .numbersAndPunctuationKeyboardIfAvailable()
             .multilineTextAlignment(.center)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
             .frame(width: fieldWidth)
@@ -360,5 +360,16 @@ private struct MetricBubble: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Theme.mutedSurface)
         )
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func numbersAndPunctuationKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.numbersAndPunctuation)
+        #else
+        self
+        #endif
     }
 }

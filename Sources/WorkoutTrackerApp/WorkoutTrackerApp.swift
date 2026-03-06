@@ -68,7 +68,8 @@ struct WorkoutsApp: App {
         GoalCardEntity.self,
         BodyMetricEntryEntity.self,
         PRRecordEntity.self,
-        AppSettingsEntity.self
+        AppSettingsEntity.self,
+        SectionHeaderEntity.self
     ])
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [configuration])

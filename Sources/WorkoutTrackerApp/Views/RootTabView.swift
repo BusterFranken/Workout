@@ -89,7 +89,7 @@ private struct MoreView: View {
                 }
             }
             .navigationTitle("More")
-            .listStyle(.insetGrouped)
+            .platformInsetGroupedListStyle()
         }
     }
 
@@ -135,7 +135,7 @@ private struct ContactView: View {
             }
         }
         .navigationTitle("Contact")
-        .listStyle(.insetGrouped)
+        .platformInsetGroupedListStyle()
     }
 }
 
@@ -161,5 +161,16 @@ private struct WorkoutsLogoMark: View {
                     .frame(width: 24, height: 6)
             }
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func platformInsetGroupedListStyle() -> some View {
+        #if os(iOS)
+        self.listStyle(.insetGrouped)
+        #else
+        self
+        #endif
     }
 }

@@ -55,20 +55,20 @@ struct ExerciseEditorSheet: View {
 
                 Section("Targets") {
                     TextField("Sets", text: $sets)
-                        .keyboardType(.numberPad)
+                        .numberPadKeyboardIfAvailable()
 
                     Toggle("Use Seconds Instead Of Reps", isOn: $useSeconds)
 
                     if useSeconds {
                         TextField("Seconds", text: $seconds)
-                            .keyboardType(.numberPad)
+                            .numberPadKeyboardIfAvailable()
                     } else {
                         TextField("Reps", text: $reps)
-                            .keyboardType(.numberPad)
+                            .numberPadKeyboardIfAvailable()
                     }
 
                     TextField("Weight (\(repository.unitSystem.title.uppercased()) or BW)", text: $weightInput)
-                        .keyboardType(.decimalPad)
+                        .decimalPadKeyboardIfAvailable()
                 }
 
                 Section("Scheduling") {
@@ -180,5 +180,25 @@ struct ExerciseEditorSheet: View {
         }
 
         repository.updateExercise(exercise, refresh: true)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func numberPadKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.numberPad)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func decimalPadKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.decimalPad)
+        #else
+        self
+        #endif
     }
 }

@@ -18,3 +18,4 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Sources/WorkoutTrackerApp/Info.plist
+        ENABLE_DEBUG_DYLIB: YES

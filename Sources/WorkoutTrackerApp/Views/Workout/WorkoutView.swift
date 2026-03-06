@@ -112,9 +112,15 @@ struct WorkoutView: View {
             }
             .background(Theme.background)
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .topBarTrailing) {
                     menu
                 }
+                #else
+                ToolbarItem(placement: .automatic) {
+                    menu
+                }
+                #endif
             }
             .sheet(item: $selectedExerciseForEditor) { row in
                 ExerciseEditorSheet(

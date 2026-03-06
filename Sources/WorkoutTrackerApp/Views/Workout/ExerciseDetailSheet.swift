@@ -74,7 +74,9 @@ struct ExerciseDetailSheet: View {
             }
             .background(Theme.background)
             .navigationTitle("Exercise")
+#if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+#endif
         }
     }
 

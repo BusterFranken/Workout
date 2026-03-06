@@ -32,7 +32,7 @@ struct MuscleGroupSectionView: View {
                 }
                 .buttonStyle(.plain)
 
-                if section.mode == .muscleGroups {
+                if section.sectionHeader != nil {
                     Button(action: onRenameSection) {
                         Image(systemName: "pencil")
                     }

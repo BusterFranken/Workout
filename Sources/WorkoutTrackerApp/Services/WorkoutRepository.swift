@@ -41,6 +41,7 @@ struct WorkoutSectionModel: Identifiable {
     let subtitle: String?
     let mode: WorkoutViewMode
     let muscleGroup: MuscleGroupEntity?
+    let sectionHeader: SectionHeaderEntity?
     let rows: [WeeklyExerciseEntity]
     let doneCount: Int
 }
@@ -111,9 +112,11 @@ final class WorkoutRepository: ObservableObject {
     @Published private(set) var goalCards: [GoalCardEntity] = []
     @Published private(set) var bodyMetricEntries: [BodyMetricEntryEntity] = []
     @Published private(set) var prRecords: [PRRecordEntity] = []
+    @Published private(set) var sectionHeaders: [SectionHeaderEntity] = []
     @Published var errorMessage: String?
 
     private let context: ModelContext
+    private let secondaryMuscleWeight: Double = 0.5
 
     private let customSlots = ["A", "B", "C", "D", "E"]
     private let weekdayHeaders: [(Int, String)] = [
@@ -171,8 +174,14 @@ final class WorkoutRepository: ObservableObject {
         !activeWeeklyExercises.isEmpty
     }
 
+    var activeWeeklyHeaders: [SectionHeaderEntity] {
+        sectionHeaders
+            .filter { $0.weekStartDate == activeWeekStart && $0.templateID == nil }
+            .sorted { $0.orderIndex < $1.orderIndex }
+    }
+
     var shouldShowAddHeadingHint: Bool {
-        workoutViewMode == .muscleGroups && workoutSections.count < 5
+        workoutViewMode == .muscleGroups && activeWeeklyHeaders.count < 5
     }
 
     var trackingWidgetOrder: [TrackingWidgetID] {
@@ -259,18 +268,25 @@ final class WorkoutRepository: ObservableObject {
     func currentWeekMuscleVolume() -> [MuscleVolumeSummary] {
         let thisWeek = completionLogs.filter { $0.weekStartDate == activeWeekStart }
 
-        var setsByGroupName: [String: Int] = [:]
-        var setsByGroupAndExercise: [String: [UUID: Int]] = [:]
+        var setsByGroupName: [String: Double] = [:]
+        var setsByGroupAndExercise: [String: [UUID: Double]] = [:]
 
         for log in thisWeek {
-            let sets = log.setsSnapshot ?? 0
-            let groups = [log.muscleGroupName] + parseCSV(log.secondaryMuscleGroupsRaw)
+            let sets = Double(log.setsSnapshot ?? 0)
+            let primaryKey = normalizeGroupName(log.muscleGroupName)
+            let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
 
-            for groupName in groups {
-                let normalized = normalizeGroupName(groupName)
-                guard !normalized.isEmpty else { continue }
-                setsByGroupName[normalized, default: 0] += sets
-                setsByGroupAndExercise[normalized, default: [:]][log.weeklyExerciseID, default: 0] += sets
+            // Primary: full weight
+            if !primaryKey.isEmpty {
+                setsByGroupName[primaryKey, default: 0] += sets
+                setsByGroupAndExercise[primaryKey, default: [:]][log.weeklyExerciseID, default: 0] += sets
+            }
+
+            // Secondary: fractional weight
+            for groupKey in secondaryKeys where !groupKey.isEmpty {
+                let weighted = sets * secondaryMuscleWeight
+                setsByGroupName[groupKey, default: 0] += weighted
+                setsByGroupAndExercise[groupKey, default: [:]][log.weeklyExerciseID, default: 0] += weighted
             }
         }
 
@@ -279,7 +295,7 @@ final class WorkoutRepository: ObservableObject {
             .sorted { $0.orderIndex < $1.orderIndex }
             .map { group in
                 let key = normalizeGroupName(group.name)
-                let groupTotal = setsByGroupName[key] ?? 0
+                let groupTotal = Int(round(setsByGroupName[key] ?? 0))
 
                 let exerciseRows = activeWeeklyExercises.filter { exercise in
                     if normalizeGroupName(exercise.muscleGroupName) == key {
@@ -292,7 +308,7 @@ final class WorkoutRepository: ObservableObject {
                 .sorted { $0.orderIndex < $1.orderIndex }
 
                 let progress = exerciseRows.map { exercise in
-                    let doneSets = setsByGroupAndExercise[key]?[exercise.id] ?? 0
+                    let doneSets = Int(round(setsByGroupAndExercise[key]?[exercise.id] ?? 0))
                     return MuscleExerciseProgress(
                         id: exercise.id,
                         exercise: exercise,
@@ -325,18 +341,25 @@ final class WorkoutRepository: ObservableObject {
                 let groupKey = normalizeGroupName(group.name)
                 let sum = completionLogs
                     .filter { $0.weekStartDate == week }
-                    .reduce(0) { partial, log in
+                    .reduce(0.0) { partial, log in
                         guard let sets = log.setsSnapshot else { return partial }
-                        let groups = [log.muscleGroupName] + parseCSV(log.secondaryMuscleGroupsRaw)
-                        let normalized = groups.map(normalizeGroupName)
-                        return normalized.contains(groupKey) ? (partial + sets) : partial
+                        let setsDouble = Double(sets)
+                        let primaryKey = normalizeGroupName(log.muscleGroupName)
+                        let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+
+                        if primaryKey == groupKey {
+                            return partial + setsDouble
+                        } else if secondaryKeys.contains(groupKey) {
+                            return partial + setsDouble * secondaryMuscleWeight
+                        }
+                        return partial
                     }
 
                 points.append(
                     MuscleTrendPoint(
                         weekStart: week,
                         muscleGroup: group.name,
-                        sets: sum
+                        sets: Int(round(sum))
                     )
                 )
             }
@@ -476,8 +499,29 @@ final class WorkoutRepository: ObservableObject {
 
     func addHeadingForCurrentView() {
         guard workoutViewMode == .muscleGroups else { return }
-        let nextNumber = workoutSections.count + 1
-        addMuscleGroup(name: "Heading \(nextNumber)")
+        let nextNumber = activeWeeklyHeaders.count + 1
+        addHeader(title: "Heading \(nextNumber)")
+    }
+
+    func addHeader(title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let nextIndex = (activeWeeklyHeaders.map(\.orderIndex).max() ?? -1) + 1
+        let header = SectionHeaderEntity(
+            title: trimmed,
+            orderIndex: nextIndex,
+            weekStartDate: activeWeekStart
+        )
+        context.insert(header)
+        saveAndRefresh()
+    }
+
+    func renameHeader(_ header: SectionHeaderEntity, to newTitle: String) {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        header.title = trimmed
+        saveAndRefresh()
     }
 
     func renameMuscleGroup(_ group: MuscleGroupEntity, to newName: String) {
@@ -530,7 +574,8 @@ final class WorkoutRepository: ObservableObject {
             sets: nil,
             reps: nil,
             seconds: nil,
-            weightKg: nil
+            weightKg: nil,
+            headerID: section.sectionHeader?.id
         )
 
         context.insert(row)
@@ -542,6 +587,13 @@ final class WorkoutRepository: ObservableObject {
         let group = ensureMuscleGroup(named: exercise.primaryMuscleGroupName)
         group.showsOnWorkout = true
 
+        let header = ensureWeeklyHeader(titled: exercise.primaryMuscleGroupName)
+
+        let nextIndex = activeWeeklyExercises
+            .filter { $0.headerID == header.id }
+            .map(\.orderIndex)
+            .max().map { $0 + 1 } ?? 0
+
         let row = WeeklyExerciseEntity(
             weekStartDate: activeWeekStart,
             exerciseID: exercise.id,
@@ -550,11 +602,12 @@ final class WorkoutRepository: ObservableObject {
             muscleGroupName: group.name,
             secondaryMuscleGroupsRaw: exercise.secondaryMuscleGroupsRaw,
             notes: exercise.notes,
-            orderIndex: nextOrderIndexInMuscleGroup(group.id),
+            orderIndex: nextIndex,
             sets: nil,
             reps: nil,
             seconds: nil,
-            weightKg: nil
+            weightKg: nil,
+            headerID: header.id
         )
 
         context.insert(row)
@@ -565,7 +618,13 @@ final class WorkoutRepository: ObservableObject {
         let group = ensureMuscleGroup(named: muscleGroupName)
         group.showsOnWorkout = true
 
-        var index = nextOrderIndexInMuscleGroup(group.id)
+        let header = ensureWeeklyHeader(titled: muscleGroupName)
+
+        var index = activeWeeklyExercises
+            .filter { $0.headerID == header.id }
+            .map(\.orderIndex)
+            .max().map { $0 + 1 } ?? 0
+
         for line in lines {
             let row = WeeklyExerciseEntity(
                 weekStartDate: activeWeekStart,
@@ -579,7 +638,8 @@ final class WorkoutRepository: ObservableObject {
                 sets: line.sets,
                 reps: line.reps,
                 seconds: line.seconds,
-                weightKg: line.weightKg
+                weightKg: line.weightKg,
+                headerID: header.id
             )
             context.insert(row)
             index += 1
@@ -596,14 +656,30 @@ final class WorkoutRepository: ObservableObject {
             settings?.activeWorkoutName = template.name
         }
 
+        // Load template headers and create weekly copies
+        let templateHeaders = sectionHeaders
+            .filter { $0.templateID == template.id }
+            .sorted { $0.orderIndex < $1.orderIndex }
+
+        var headerMapping: [UUID: UUID] = [:]
+        let existingHeaderCount = activeWeeklyHeaders.count
+
+        for (index, templateHeader) in templateHeaders.enumerated() {
+            let weeklyHeader = SectionHeaderEntity(
+                title: templateHeader.title,
+                orderIndex: existingHeaderCount + index,
+                weekStartDate: activeWeekStart
+            )
+            context.insert(weeklyHeader)
+            headerMapping[templateHeader.id] = weeklyHeader.id
+        }
+
         let existingNames = Set(activeWeeklyExercises.map { normalizedKey($0.name) })
         var mutableExisting = existingNames
 
         let rows = templateExercises
             .filter { $0.templateID == template.id }
             .sorted { $0.orderIndex < $1.orderIndex }
-
-        var nextIndexes: [UUID: Int] = [:]
 
         for row in rows {
             if behavior == .addAllUnique {
@@ -616,8 +692,21 @@ final class WorkoutRepository: ObservableObject {
 
             let group = ensureMuscleGroup(named: row.muscleGroupName)
             group.showsOnWorkout = true
-            let nextIndex = nextIndexes[group.id] ?? nextOrderIndexInMuscleGroup(group.id)
-            nextIndexes[group.id] = nextIndex + 1
+
+            // Map headerID from template to weekly; fallback to finding/creating by muscle group name
+            let newHeaderID: UUID?
+            if let templateHeaderID = row.headerID, let mapped = headerMapping[templateHeaderID] {
+                newHeaderID = mapped
+            } else {
+                // Old template without headerIDs — create header from muscle group name
+                let header = ensureWeeklyHeader(titled: row.muscleGroupName)
+                newHeaderID = header.id
+            }
+
+            let nextIndex = activeWeeklyExercises
+                .filter { $0.headerID == newHeaderID }
+                .map(\.orderIndex)
+                .max().map { $0 + 1 } ?? 0
 
             let weekly = WeeklyExerciseEntity(
                 weekStartDate: activeWeekStart,
@@ -633,7 +722,8 @@ final class WorkoutRepository: ObservableObject {
                 sets: row.sets,
                 reps: row.reps,
                 seconds: row.seconds,
-                weightKg: row.weightKg
+                weightKg: row.weightKg,
+                headerID: newHeaderID
             )
             context.insert(weekly)
         }
@@ -664,11 +754,11 @@ final class WorkoutRepository: ObservableObject {
 
         switch workoutViewMode {
         case .muscleGroups:
-            guard let groupID = UUID(uuidString: sectionID),
-                  let group = muscleGroups.first(where: { $0.id == groupID }) else {
+            guard let headerID = UUID(uuidString: sectionID),
+                  let header = activeWeeklyHeaders.first(where: { $0.id == headerID }) else {
                 return
             }
-            moveExercise(exercise, toMuscleGroup: group, at: index)
+            moveExercise(exercise, toHeader: header, at: index)
         case .weekdays:
             guard let day = parseWeekday(sectionID) else { return }
             moveExercise(exercise, toWeekday: day, at: index)
@@ -723,9 +813,22 @@ final class WorkoutRepository: ObservableObject {
         let template = WorkoutTemplateEntity(name: trimmed)
         context.insert(template)
 
+        // Save headers to template
+        var headerMapping: [UUID: UUID] = [:]
+        for header in activeWeeklyHeaders {
+            let templateHeader = SectionHeaderEntity(
+                title: header.title,
+                orderIndex: header.orderIndex,
+                templateID: template.id
+            )
+            context.insert(templateHeader)
+            headerMapping[header.id] = templateHeader.id
+        }
+
         let rows = activeWeeklyExercises.sorted { $0.orderIndex < $1.orderIndex }
         for (index, row) in rows.enumerated() {
             let exerciseID = upsertCatalogExercise(from: row)
+            let templateHeaderID = row.headerID.flatMap { headerMapping[$0] }
 
             let snap = WorkoutTemplateExerciseEntity(
                 templateID: template.id,
@@ -741,7 +844,8 @@ final class WorkoutRepository: ObservableObject {
                 sets: row.sets,
                 reps: row.reps,
                 seconds: row.seconds,
-                weightKg: row.weightKg
+                weightKg: row.weightKg,
+                headerID: templateHeaderID
             )
             context.insert(snap)
         }
@@ -761,11 +865,12 @@ final class WorkoutRepository: ObservableObject {
 
         settings?.activeWorkoutName = "Start From Scratch"
 
-        if let first = muscleGroups.first(where: { !$0.isArchived }) {
-            first.showsOnWorkout = true
-        } else {
-            context.insert(MuscleGroupEntity(name: "Heading 1", orderIndex: 0, showsOnWorkout: true))
-        }
+        let header = SectionHeaderEntity(
+            title: "Heading 1",
+            orderIndex: 0,
+            weekStartDate: activeWeekStart
+        )
+        context.insert(header)
 
         saveAndRefresh()
     }
@@ -782,10 +887,23 @@ final class WorkoutRepository: ObservableObject {
             nextWeek = todayStart
         }
 
+        // Clone headers
+        var headerMapping: [UUID: UUID] = [:]
+        for header in activeWeeklyHeaders {
+            let newHeader = SectionHeaderEntity(
+                title: header.title,
+                orderIndex: header.orderIndex,
+                weekStartDate: nextWeek
+            )
+            context.insert(newHeader)
+            headerMapping[header.id] = newHeader.id
+        }
+
         let currentRows = activeWeeklyExercises
         settings.activeWeekStartDate = nextWeek
 
         for row in currentRows {
+            let newHeaderID = row.headerID.flatMap { headerMapping[$0] }
             let clone = WeeklyExerciseEntity(
                 weekStartDate: nextWeek,
                 exerciseID: row.exerciseID,
@@ -802,7 +920,8 @@ final class WorkoutRepository: ObservableObject {
                 seconds: row.seconds,
                 weightKg: row.weightKg,
                 completedAt: nil,
-                removedAt: nil
+                removedAt: nil,
+                headerID: newHeaderID
             )
             context.insert(clone)
         }
@@ -884,6 +1003,8 @@ final class WorkoutRepository: ObservableObject {
             guard let settings = self.settings,
                   settings.seedVersion < SeedCatalog.seedVersion
             else {
+                migrateToSectionHeadersIfNeeded()
+                refreshAll()
                 ensureDefaultGoalCard()
                 return
             }
@@ -892,6 +1013,8 @@ final class WorkoutRepository: ObservableObject {
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
             try context.save()
+            refreshAll()
+            migrateToSectionHeadersIfNeeded()
             refreshAll()
         } catch {
             errorMessage = "Failed to bootstrap app data: \(error.localizedDescription)"
@@ -934,6 +1057,10 @@ final class WorkoutRepository: ObservableObject {
 
             prRecords = try context.fetch(
                 FetchDescriptor<PRRecordEntity>(sortBy: [SortDescriptor(\.recordedAt, order: .forward)])
+            )
+
+            sectionHeaders = try context.fetch(
+                FetchDescriptor<SectionHeaderEntity>(sortBy: [SortDescriptor(\.orderIndex, order: .forward)])
             )
 
             ensureDefaultGoalCard()
@@ -994,6 +1121,55 @@ final class WorkoutRepository: ObservableObject {
         }
     }
 
+    private func migrateToSectionHeadersIfNeeded() {
+        let needsMigration = activeWeeklyExercises.contains { $0.headerID == nil }
+        guard needsMigration && !activeWeeklyExercises.isEmpty else { return }
+
+        let groupIDs = Set(activeWeeklyExercises.filter { $0.headerID == nil }.compactMap(\.muscleGroupID))
+
+        for groupID in groupIDs {
+            guard let group = muscleGroups.first(where: { $0.id == groupID }) else { continue }
+
+            let header = SectionHeaderEntity(
+                title: group.name,
+                orderIndex: group.orderIndex,
+                weekStartDate: activeWeekStart
+            )
+            context.insert(header)
+
+            for exercise in activeWeeklyExercises where exercise.muscleGroupID == groupID && exercise.headerID == nil {
+                exercise.headerID = header.id
+            }
+        }
+
+        // Migrate templates
+        for template in workoutTemplates {
+            let templateRows = templateExercises.filter { $0.templateID == template.id && $0.headerID == nil }
+            let templateGroupIDs = Set(templateRows.compactMap(\.muscleGroupID))
+
+            for groupID in templateGroupIDs {
+                guard let group = muscleGroups.first(where: { $0.id == groupID }) else { continue }
+
+                let header = SectionHeaderEntity(
+                    title: group.name,
+                    orderIndex: group.orderIndex,
+                    templateID: template.id
+                )
+                context.insert(header)
+
+                for row in templateRows where row.muscleGroupID == groupID {
+                    row.headerID = header.id
+                }
+            }
+        }
+
+        do {
+            try context.save()
+        } catch {
+            errorMessage = "Migration failed: \(error.localizedDescription)"
+        }
+    }
+
     private func saveAndRefresh() {
         do {
             try context.save()
@@ -1036,6 +1212,9 @@ final class WorkoutRepository: ObservableObject {
             row.completedAt = nil
             removeCompletionLog(for: row)
         }
+        for header in activeWeeklyHeaders {
+            context.delete(header)
+        }
     }
 
     private func ensureMuscleGroup(named name: String) -> MuscleGroupEntity {
@@ -1051,6 +1230,24 @@ final class WorkoutRepository: ObservableObject {
         let group = MuscleGroupEntity(name: trimmed, orderIndex: nextIndex)
         context.insert(group)
         return group
+    }
+
+    private func ensureWeeklyHeader(titled title: String) -> SectionHeaderEntity {
+        let normalized = normalizeGroupName(title)
+        if let existing = activeWeeklyHeaders.first(where: {
+            normalizeGroupName($0.title) == normalized
+        }) {
+            return existing
+        }
+
+        let nextIndex = (activeWeeklyHeaders.map(\.orderIndex).max() ?? -1) + 1
+        let header = SectionHeaderEntity(
+            title: title,
+            orderIndex: nextIndex,
+            weekStartDate: activeWeekStart
+        )
+        context.insert(header)
+        return header
     }
 
     private func ensureDefaultExerciseGroup() -> MuscleGroupEntity {
@@ -1108,16 +1305,15 @@ final class WorkoutRepository: ObservableObject {
         return maxValue + 1
     }
 
-    private func moveExercise(_ exercise: WeeklyExerciseEntity, toMuscleGroup group: MuscleGroupEntity, at index: Int) {
-        let previousGroupID = exercise.muscleGroupID
-        exercise.muscleGroupID = group.id
-        exercise.muscleGroupName = group.name
+    private func moveExercise(_ exercise: WeeklyExerciseEntity, toHeader header: SectionHeaderEntity, at index: Int) {
+        let previousHeaderID = exercise.headerID
+        exercise.headerID = header.id
 
-        if previousGroupID == group.id {
-            reorderRowsInMuscleGroup(group.id, inserting: exercise, at: index)
+        if previousHeaderID == header.id {
+            reorderRowsInHeader(header.id, inserting: exercise, at: index)
         } else {
-            normalizeOrderInMuscleGroup(previousGroupID)
-            reorderRowsInMuscleGroup(group.id, inserting: exercise, at: index)
+            normalizeOrderInHeader(previousHeaderID)
+            reorderRowsInHeader(header.id, inserting: exercise, at: index)
         }
 
         saveAndRefresh()
@@ -1151,9 +1347,9 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
-    private func reorderRowsInMuscleGroup(_ groupID: UUID?, inserting exercise: WeeklyExerciseEntity, at index: Int) {
+    private func reorderRowsInHeader(_ headerID: UUID?, inserting exercise: WeeklyExerciseEntity, at index: Int) {
         var rows = activeWeeklyExercises
-            .filter { $0.muscleGroupID == groupID && $0.id != exercise.id && $0.completedAt == nil }
+            .filter { $0.headerID == headerID && $0.id != exercise.id && $0.completedAt == nil }
             .sorted { $0.orderIndex < $1.orderIndex }
 
         let clamped = min(max(index, 0), rows.count)
@@ -1192,9 +1388,9 @@ final class WorkoutRepository: ObservableObject {
         }
     }
 
-    private func normalizeOrderInMuscleGroup(_ groupID: UUID?) {
+    private func normalizeOrderInHeader(_ headerID: UUID?) {
         let rows = pendingExercises
-            .filter { $0.muscleGroupID == groupID }
+            .filter { $0.headerID == headerID }
             .sorted { $0.orderIndex < $1.orderIndex }
 
         for (index, row) in rows.enumerated() {
@@ -1225,24 +1421,20 @@ final class WorkoutRepository: ObservableObject {
     }
 
     private func muscleGroupSections() -> [WorkoutSectionModel] {
-        let pendingByGroup = Dictionary(grouping: pendingExercises, by: { $0.muscleGroupID })
-        let doneByGroup = Dictionary(grouping: doneExercises, by: { $0.muscleGroupID })
-        let usedGroupIDs = Set(activeWeeklyExercises.compactMap(\.muscleGroupID))
+        let headers = activeWeeklyHeaders
+        let pendingByHeader = Dictionary(grouping: pendingExercises, by: { $0.headerID })
+        let doneByHeader = Dictionary(grouping: doneExercises, by: { $0.headerID })
 
-        let groups = muscleGroups
-            .filter { !$0.isArchived }
-            .filter { $0.showsOnWorkout || usedGroupIDs.contains($0.id) }
-            .sorted { $0.orderIndex < $1.orderIndex }
-
-        return groups.map { group in
-            let rows = (pendingByGroup[group.id] ?? []).sorted { $0.orderIndex < $1.orderIndex }
-            let doneCount = doneByGroup[group.id]?.count ?? 0
+        return headers.map { header in
+            let rows = (pendingByHeader[header.id] ?? []).sorted { $0.orderIndex < $1.orderIndex }
+            let doneCount = doneByHeader[header.id]?.count ?? 0
             return WorkoutSectionModel(
-                id: group.id.uuidString,
-                title: group.name,
+                id: header.id.uuidString,
+                title: header.title,
                 subtitle: nil,
                 mode: .muscleGroups,
-                muscleGroup: group,
+                muscleGroup: nil,
+                sectionHeader: header,
                 rows: rows,
                 doneCount: doneCount
             )
@@ -1262,6 +1454,7 @@ final class WorkoutRepository: ObservableObject {
                 subtitle: day > 5 ? "Rest" : nil,
                 mode: .weekdays,
                 muscleGroup: nil,
+                sectionHeader: nil,
                 rows: rows,
                 doneCount: doneCount
             )
@@ -1282,6 +1475,7 @@ final class WorkoutRepository: ObservableObject {
                 subtitle: nil,
                 mode: .custom,
                 muscleGroup: nil,
+                sectionHeader: nil,
                 rows: rows,
                 doneCount: doneCount
             )
@@ -1321,14 +1515,22 @@ final class WorkoutRepository: ObservableObject {
                 return 0
             }
             let key = normalizeGroupName(group.name)
-            return completionLogs
+            let total = completionLogs
                 .filter { $0.weekStartDate == activeWeekStart }
-                .filter { log in
-                    let groups = [log.muscleGroupName] + parseCSV(log.secondaryMuscleGroupsRaw)
-                    return groups.map(normalizeGroupName).contains(key)
+                .reduce(0.0) { partial, log in
+                    guard let sets = log.setsSnapshot else { return partial }
+                    let setsDouble = Double(sets)
+                    let primaryKey = normalizeGroupName(log.muscleGroupName)
+                    let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+
+                    if primaryKey == key {
+                        return partial + setsDouble
+                    } else if secondaryKeys.contains(key) {
+                        return partial + setsDouble * secondaryMuscleWeight
+                    }
+                    return partial
                 }
-                .compactMap(\.setsSnapshot)
-                .reduce(0, +)
+            return Int(round(total))
         case .workoutDays:
             let days = Set(
                 completionLogs

@@ -19,7 +19,8 @@ struct WorkoutsApp: App {
             GoalCardEntity.self,
             BodyMetricEntryEntity.self,
             PRRecordEntity.self,
-            AppSettingsEntity.self
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
         ])
 
         let modelContainer: ModelContainer

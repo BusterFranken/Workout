@@ -1,22 +1,29 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ExerciseRowView: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
     let exercise: WeeklyExerciseEntity
     let isReordering: Bool
+    let isActiveDragItem: Bool
+    let activeDragExerciseID: UUID?
+    let rowIndex: Int
     let onOpenEditor: () -> Void
     let onOpenDetail: () -> Void
     let onDelete: () -> Void
     let onMarkDone: () -> Void
     let onStartDrag: (UUID) -> Void
-    let onDropOnRow: (UUID, WeeklyExerciseEntity) -> Void
+    let onDropAtIndex: (UUID, Int) -> Void
+    @Binding var hoveredInsertionIndex: Int?
 
     @State private var baseOffset: CGFloat = 0
     @GestureState private var dragOffset: CGFloat = 0
     @State private var didTriggerThresholdHaptic = false
 
     private let trailingRevealWidth: CGFloat = 134
+    private let rowHeight: CGFloat = 56
+
 
     var body: some View {
         GeometryReader { proxy in
@@ -31,22 +38,23 @@ struct ExerciseRowView: View {
             .animation(.spring(response: 0.28, dampingFraction: 0.85), value: totalOffset)
             .scaleEffect(totalOffset > 0 ? 0.995 : 1.0)
         }
-        .frame(height: 56)
+        .frame(height: rowHeight)
         .padding(.vertical, 2)
-        .wiggle(isReordering)
-        .draggable(exercise.id.uuidString)
-        .dropDestination(for: String.self) { items, _ in
-            guard let first = items.first,
-                  let sourceID = UUID(uuidString: first),
-                  sourceID != exercise.id else {
-                return false
-            }
-            onDropOnRow(sourceID, exercise)
-            return true
-        }
-        .onLongPressGesture {
+        .onDrag {
             onStartDrag(exercise.id)
+            return NSItemProvider(object: exercise.id.uuidString as NSString)
         }
+        .onDrop(
+            of: [UTType.plainText],
+            delegate: RowDropDelegate(
+                rowHeight: rowHeight,
+                rowIndex: rowIndex,
+                targetExercise: exercise,
+                activeDragExerciseID: activeDragExerciseID,
+                hoveredInsertionIndex: $hoveredInsertionIndex,
+                onDropAtIndex: onDropAtIndex
+            )
+        )
     }
 
     private var totalOffset: CGFloat {
@@ -134,23 +142,16 @@ struct ExerciseRowView: View {
                     }
                 }
 
-            MetricBubble(label: "st", text: setsBinding, width: 52, isEditable: !isReordering)
+            MetricBubble(text: setsBinding, isEditable: !isReordering)
             MetricBubble(
-                label: exercise.seconds != nil && exercise.reps == nil ? "s" : "rp",
                 text: repsOrSecondsBinding,
-                width: 52,
                 isEditable: !isReordering
             )
             MetricBubble(
-                label: Formatting.weightPlaceholder(for: repository.unitSystem),
                 text: weightBinding,
-                width: 58,
                 placeholder: "BW",
                 isEditable: !isReordering
             )
-
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(Theme.secondaryText.opacity(isReordering ? 1 : 0.35))
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -162,6 +163,13 @@ struct ExerciseRowView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Theme.primaryText.opacity(0.06), lineWidth: 1)
         )
+        .scaleEffect(isActiveDragItem ? 1.02 : 1)
+        .shadow(
+            color: Theme.shadow.opacity(isActiveDragItem ? 0.9 : 0),
+            radius: isActiveDragItem ? 12 : 0,
+            y: isActiveDragItem ? 6 : 0
+        )
+        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: isActiveDragItem)
     }
 
     private func dragGesture(width: CGFloat) -> some Gesture {
@@ -276,28 +284,78 @@ struct ExerciseRowView: View {
     }
 }
 
+private struct RowDropDelegate: DropDelegate {
+    let rowHeight: CGFloat
+    let rowIndex: Int
+    let targetExercise: WeeklyExerciseEntity
+    let activeDragExerciseID: UUID?
+    @Binding var hoveredInsertionIndex: Int?
+    let onDropAtIndex: (UUID, Int) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        guard let sourceID = activeDragExerciseID else { return false }
+        return sourceID != targetExercise.id
+    }
+
+    func dropEntered(info: DropInfo) {
+        updateDropState(for: info)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        updateDropState(for: info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        hoveredInsertionIndex = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer { hoveredInsertionIndex = nil }
+
+        guard let sourceID = activeDragExerciseID, sourceID != targetExercise.id else {
+            return false
+        }
+
+        let insertionIndex = hoveredInsertionIndex ?? index(for: info.location)
+        onDropAtIndex(sourceID, insertionIndex)
+        return true
+    }
+
+    private func updateDropState(for info: DropInfo) {
+        guard validateDrop(info: info) else {
+            hoveredInsertionIndex = nil
+            return
+        }
+
+        hoveredInsertionIndex = index(for: info.location)
+    }
+
+    private func index(for location: CGPoint) -> Int {
+        location.y >= rowHeight * 0.5 ? rowIndex + 1 : rowIndex
+    }
+}
+
 private struct MetricBubble: View {
-    let label: String
     @Binding var text: String
-    let width: CGFloat
     var placeholder: String = ""
     var isEditable: Bool = true
 
-    var body: some View {
-        HStack(spacing: 1) {
-            TextField(placeholder, text: $text)
-                .keyboardType(.numbersAndPunctuation)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .frame(width: width)
-                .disabled(!isEditable)
+    private var fieldWidth: CGFloat {
+        let characterCount = max(max(text.count, placeholder.count), 1)
+        let ideal = CGFloat(characterCount) * 9 + 10
+        return min(max(ideal, 24), 50)
+    }
 
-            Text(label)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.secondaryText)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .keyboardType(.numbersAndPunctuation)
+            .multilineTextAlignment(.center)
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .frame(width: fieldWidth)
+            .disabled(!isEditable)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Theme.mutedSurface)

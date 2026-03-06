@@ -1307,13 +1307,14 @@ final class WorkoutRepository: ObservableObject {
 
     private func moveExercise(_ exercise: WeeklyExerciseEntity, toHeader header: SectionHeaderEntity, at index: Int) {
         let previousHeaderID = exercise.headerID
+        let adjustedIndex = previousHeaderID == header.id && exercise.orderIndex < index ? max(0, index - 1) : index
         exercise.headerID = header.id
 
         if previousHeaderID == header.id {
-            reorderRowsInHeader(header.id, inserting: exercise, at: index)
+            reorderRowsInHeader(header.id, inserting: exercise, at: adjustedIndex)
         } else {
             normalizeOrderInHeader(previousHeaderID)
-            reorderRowsInHeader(header.id, inserting: exercise, at: index)
+            reorderRowsInHeader(header.id, inserting: exercise, at: adjustedIndex)
         }
 
         saveAndRefresh()
@@ -1321,13 +1322,14 @@ final class WorkoutRepository: ObservableObject {
 
     private func moveExercise(_ exercise: WeeklyExerciseEntity, toWeekday day: Int, at index: Int) {
         let previousDay = exercise.weekdayIndex ?? 1
+        let adjustedIndex = previousDay == day && exercise.orderIndex < index ? max(0, index - 1) : index
         exercise.weekdayIndex = day
 
         if previousDay == day {
-            reorderRowsInWeekday(day, inserting: exercise, at: index)
+            reorderRowsInWeekday(day, inserting: exercise, at: adjustedIndex)
         } else {
             normalizeOrderInWeekday(previousDay)
-            reorderRowsInWeekday(day, inserting: exercise, at: index)
+            reorderRowsInWeekday(day, inserting: exercise, at: adjustedIndex)
         }
 
         saveAndRefresh()
@@ -1335,13 +1337,14 @@ final class WorkoutRepository: ObservableObject {
 
     private func moveExercise(_ exercise: WeeklyExerciseEntity, toCustomSlot slot: String, at index: Int) {
         let previousSlot = (exercise.customSlot ?? "A")
+        let adjustedIndex = previousSlot == slot && exercise.orderIndex < index ? max(0, index - 1) : index
         exercise.customSlot = slot
 
         if previousSlot == slot {
-            reorderRowsInCustomSlot(slot, inserting: exercise, at: index)
+            reorderRowsInCustomSlot(slot, inserting: exercise, at: adjustedIndex)
         } else {
             normalizeOrderInCustomSlot(previousSlot)
-            reorderRowsInCustomSlot(slot, inserting: exercise, at: index)
+            reorderRowsInCustomSlot(slot, inserting: exercise, at: adjustedIndex)
         }
 
         saveAndRefresh()

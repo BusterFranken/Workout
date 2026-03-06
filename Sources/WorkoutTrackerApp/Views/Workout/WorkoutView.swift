@@ -6,6 +6,7 @@ struct WorkoutView: View {
 
     @State private var isGoalEditMode = false
     @State private var isExerciseReorderMode = false
+    @State private var activeDragExerciseID: UUID?
 
     @State private var showingNewWeekWarning = false
     @State private var showingDeleteDialog = false
@@ -50,6 +51,7 @@ struct WorkoutView: View {
                                 MuscleGroupSectionView(
                                     section: section,
                                     isReordering: isExerciseReorderMode,
+                                    activeDragExerciseID: activeDragExerciseID,
                                     onRenameSection: {
                                         if let header = section.sectionHeader {
                                             selectedHeaderForRename = header
@@ -72,17 +74,20 @@ struct WorkoutView: View {
                                     onMarkDone: { row in
                                         repository.toggleExerciseCompleted(row)
                                     },
-                                    onDragStart: { _ in
+                                    onDragStart: { sourceID in
                                         withAnimation(.spring) {
-                                            isExerciseReorderMode = true
+                                            activeDragExerciseID = sourceID
                                         }
+                                        Haptics.soft()
                                     },
                                     onDropOnSection: { sourceID, sectionID in
                                         moveExercise(sourceID: sourceID, toSectionID: sectionID, targetIndex: nil)
+                                        endExerciseReorderMode()
                                     },
-                                    onDropOnRow: { sourceID, targetRow in
-                                        let target = max(0, targetRow.orderIndex)
+                                    onDropOnRow: { sourceID, targetRow, insertAfter in
+                                        let target = max(0, targetRow.orderIndex + (insertAfter ? 1 : 0))
                                         moveExercise(sourceID: sourceID, toSectionID: section.id, targetIndex: target)
+                                        endExerciseReorderMode()
                                     }
                                 )
                             }
@@ -98,11 +103,6 @@ struct WorkoutView: View {
                                 }
                             }
 
-                            if isExerciseReorderMode {
-                                Text("Drag exercises to reorder")
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.secondaryText)
-                            }
                         }
 
                         doneSection
@@ -194,7 +194,7 @@ struct WorkoutView: View {
                     isGoalEditMode = false
                 }
                 if isExerciseReorderMode {
-                    isExerciseReorderMode = false
+                    endExerciseReorderMode()
                 }
             }
         }
@@ -433,6 +433,13 @@ struct WorkoutView: View {
     private func moveExercise(sourceID: UUID, toSectionID sectionID: String, targetIndex: Int?) {
         let index = targetIndex ?? repository.workoutSections.first(where: { $0.id == sectionID })?.rows.count ?? 0
         repository.moveExercise(sourceID: sourceID, toSectionID: sectionID, at: index)
+    }
+
+    private func endExerciseReorderMode() {
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
+            activeDragExerciseID = nil
+            isExerciseReorderMode = false
+        }
     }
 }
 

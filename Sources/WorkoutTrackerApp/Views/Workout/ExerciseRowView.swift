@@ -142,14 +142,16 @@ struct ExerciseRowView: View {
                     }
                 }
 
-            MetricBubble(text: setsBinding, isEditable: !isReordering)
+            MetricBubble(text: setsBinding, suffix: "s", isEditable: !isReordering)
             MetricBubble(
                 text: repsOrSecondsBinding,
+                suffix: "r",
                 isEditable: !isReordering
             )
             MetricBubble(
                 text: weightBinding,
                 placeholder: "BW",
+                suffix: "kg",
                 isEditable: !isReordering
             )
         }
@@ -339,6 +341,7 @@ private struct RowDropDelegate: DropDelegate {
 private struct MetricBubble: View {
     @Binding var text: String
     var placeholder: String = ""
+    var suffix: String = ""
     var isEditable: Bool = true
 
     private var fieldWidth: CGFloat {
@@ -348,14 +351,22 @@ private struct MetricBubble: View {
     }
 
     var body: some View {
-        TextField(placeholder, text: $text)
-            .numbersAndPunctuationKeyboardIfAvailable()
-            .multilineTextAlignment(.center)
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .frame(width: fieldWidth)
-            .disabled(!isEditable)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 5)
+        HStack(spacing: 2) {
+            TextField(placeholder, text: $text)
+                .numbersAndPunctuationKeyboardIfAvailable()
+                .multilineTextAlignment(.center)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .frame(width: fieldWidth)
+                .disabled(!isEditable)
+
+            if !suffix.isEmpty {
+                Text(suffix)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Theme.mutedSurface)

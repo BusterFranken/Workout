@@ -7,6 +7,7 @@ struct GoalCardStripView: View {
     @Binding var showingTargetEditor: Bool
 
     @State private var showingAddGoal = false
+    @State private var editingGoalCard: GoalCardEntity?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -17,9 +18,11 @@ struct GoalCardStripView: View {
                             snapshot: snapshot,
                             isEditing: isEditing,
                             onDelete: { repository.archiveGoal(snapshot.card) },
-                            onEditDefault: {
+                            onEdit: {
                                 if snapshot.card.isSystem {
                                     showingTargetEditor = true
+                                } else {
+                                    editingGoalCard = snapshot.card
                                 }
                             }
                         )
@@ -64,6 +67,10 @@ struct GoalCardStripView: View {
             AddGoalSheet(isPresented: $showingAddGoal)
                 .environmentObject(repository)
         }
+        .sheet(item: $editingGoalCard) { card in
+            EditGoalSheet(card: card, editingCard: $editingGoalCard)
+                .environmentObject(repository)
+        }
     }
 }
 
@@ -71,7 +78,7 @@ private struct GoalCardView: View {
     let snapshot: GoalSnapshot
     let isEditing: Bool
     let onDelete: () -> Void
-    let onEditDefault: () -> Void
+    let onEdit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -79,19 +86,18 @@ private struct GoalCardView: View {
                 Text(snapshot.title)
                     .font(.headline)
                 Spacer(minLength: 6)
-                if snapshot.card.isSystem {
-                    Button(action: onEditDefault) {
-                        Image(systemName: "pencil")
-                            .font(.footnote.weight(.semibold))
-                    }
-                    .buttonStyle(.plain)
-                } else if isEditing {
+                if isEditing && !snapshot.card.isSystem {
                     Button(action: onDelete) {
                         Image(systemName: "minus.circle.fill")
                             .foregroundStyle(Theme.warning)
                     }
                     .buttonStyle(.plain)
                 }
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .font(.footnote.weight(.semibold))
+                }
+                .buttonStyle(.plain)
             }
 
             Text("\(snapshot.currentValue)/\(snapshot.targetValue)")
@@ -177,6 +183,45 @@ private struct AddGoalSheet: View {
                         isPresented = false
                     }
                     .disabled(metric == .muscleGroupSets && selectedMuscleGroupID == nil)
+                }
+            }
+        }
+    }
+}
+
+private struct EditGoalSheet: View {
+    @EnvironmentObject private var repository: WorkoutRepository
+
+    let card: GoalCardEntity
+    @Binding var editingCard: GoalCardEntity?
+
+    @State private var target: Int
+
+    init(card: GoalCardEntity, editingCard: Binding<GoalCardEntity?>) {
+        self.card = card
+        self._editingCard = editingCard
+        self._target = State(initialValue: card.targetValue)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Target") {
+                    Stepper(value: $target, in: 1...300) {
+                        Text("\(target)")
+                    }
+                }
+            }
+            .navigationTitle("Edit Goal")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { editingCard = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        repository.updateGoalTarget(card, target: target)
+                        editingCard = nil
+                    }
                 }
             }
         }

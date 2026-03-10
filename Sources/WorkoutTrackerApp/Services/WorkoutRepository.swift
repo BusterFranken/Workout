@@ -1094,6 +1094,7 @@ final class WorkoutRepository: ObservableObject {
             }
 
             seedLibraryDataIfNeeded()
+            migratePhantomMuscleGroups()
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
             try context.save()
@@ -1203,6 +1204,42 @@ final class WorkoutRepository: ObservableObject {
             )
             context.insert(item)
         }
+    }
+
+    private func migratePhantomMuscleGroups() {
+        let renames: [String: String] = [
+            "Bisceps": "Biceps",
+            "Core": "Abs"
+        ]
+
+        for (oldName, newName) in renames {
+            let oldNorm = normalizeGroupName(oldName)
+
+            // Fix secondaryMuscleGroupsRaw on all entity types that store it
+            for exercise in exerciseCatalog where exercise.secondaryMuscleGroupsRaw.contains(oldName) {
+                exercise.secondaryMuscleGroupsRaw = exercise.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for item in templateExercises where item.secondaryMuscleGroupsRaw.contains(oldName) {
+                item.secondaryMuscleGroupsRaw = item.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for weekly in weeklyExercises where weekly.secondaryMuscleGroupsRaw.contains(oldName) {
+                weekly.secondaryMuscleGroupsRaw = weekly.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for log in completionLogs where log.secondaryMuscleGroupsRaw.contains(oldName) {
+                log.secondaryMuscleGroupsRaw = log.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+
+            // Delete the phantom MuscleGroupEntity
+            for group in muscleGroups where normalizeGroupName(group.name) == oldNorm {
+                context.delete(group)
+            }
+        }
+
+        saveAndRefresh()
     }
 
     private func migrateToSectionHeadersIfNeeded() {

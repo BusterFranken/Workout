@@ -16,7 +16,7 @@ struct SeedExercise {
 }
 
 enum SeedCatalog {
-    static let seedVersion = 2
+    static let seedVersion = 3
 
     static let defaultWeeklySetGoal = 85
 
@@ -166,7 +166,7 @@ enum SeedCatalog {
             legacyID: 10,
             name: "Tricep rope",
             muscleGroup: "Triceps",
-            secondaryMuscleGroups: ["Core"],
+            secondaryMuscleGroups: ["Abs"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -208,7 +208,7 @@ enum SeedCatalog {
             legacyID: 13,
             name: "Machine/dumbell flies",
             muscleGroup: "Chest",
-            secondaryMuscleGroups: ["Bisceps"],
+            secondaryMuscleGroups: ["Biceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,

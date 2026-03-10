@@ -36,6 +36,7 @@ enum Formatting {
         }
 
         var value = trimmed
+            .replacingOccurrences(of: ",", with: ".")
             .replacingOccurrences(of: "kg", with: "")
             .replacingOccurrences(of: "lb", with: "")
 

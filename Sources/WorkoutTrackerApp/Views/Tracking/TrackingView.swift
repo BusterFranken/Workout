@@ -337,6 +337,11 @@ private struct AddWeighInSheet: View {
     @State private var weight: String = ""
     @State private var bodyFat: String = ""
 
+    /// Accept both comma and dot as decimal separator.
+    private func parseDecimal(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: "."))
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -361,14 +366,14 @@ private struct AddWeighInSheet: View {
                         isPresented = false
                         Haptics.success()
                     }
-                    .disabled(Double(weight) == nil)
+                    .disabled(parseDecimal(weight) == nil)
                 }
             }
         }
     }
 
     private func save() {
-        guard let rawWeight = Double(weight) else { return }
+        guard let rawWeight = parseDecimal(weight) else { return }
 
         let kgWeight: Double
         switch repository.unitSystem {
@@ -380,7 +385,7 @@ private struct AddWeighInSheet: View {
 
         repository.addBodyMetric(kind: .scaleWeight, value: kgWeight)
 
-        if let bf = Double(bodyFat), bf > 0 {
+        if let bf = parseDecimal(bodyFat), bf > 0 {
             repository.addBodyMetric(kind: .visualBodyFat, value: bf)
         }
     }

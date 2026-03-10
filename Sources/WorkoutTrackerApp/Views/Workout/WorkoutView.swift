@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct WorkoutView: View {
     @EnvironmentObject private var repository: WorkoutRepository
@@ -108,6 +111,7 @@ struct WorkoutView: View {
                         doneSection
                     }
                 }
+                .contentShape(Rectangle())
                 .padding()
             }
             .background(Theme.background)
@@ -196,6 +200,7 @@ struct WorkoutView: View {
                 Text("This will uncheck all exercises and create a clean week while preserving history.")
             }
             .onTapGesture {
+                dismissKeyboard()
                 if isGoalEditMode {
                     isGoalEditMode = false
                 }
@@ -204,6 +209,12 @@ struct WorkoutView: View {
                 }
             }
         }
+    }
+
+    private func dismissKeyboard() {
+        #if os(iOS)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
     }
 
     private var header: some View {
@@ -288,7 +299,7 @@ struct WorkoutView: View {
                 .foregroundStyle(Theme.secondaryText)
 
             HStack(spacing: 10) {
-                Button("+ Add workout or exercises") {
+                Button("+ Add workout") {
                     navigation.selectedTab = .library
                 }
                 .buttonStyle(.borderedProminent)

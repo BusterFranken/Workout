@@ -48,6 +48,20 @@ struct ExerciseDetailSheet: View {
                                 )
                                 .foregroundStyle(Theme.accent)
                             }
+                            .chartXAxis {
+                                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel()
+                                }
+                            }
                             .frame(height: 180)
                         }
 
@@ -65,6 +79,20 @@ struct ExerciseDetailSheet: View {
                                     y: .value("Load", point.loadSnapshot ?? 0)
                                 )
                                 .foregroundStyle(Color.black)
+                            }
+                            .chartXAxis {
+                                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel()
+                                }
                             }
                             .frame(height: 180)
                         }

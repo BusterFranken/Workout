@@ -303,6 +303,7 @@ final class CompletionLogEntity {
     var secondsSnapshot: Int?
     var weightKgSnapshot: Double?
     var loadSnapshot: Double?
+    var isSimulated: Bool
 
     init(
         id: UUID = UUID(),
@@ -318,7 +319,8 @@ final class CompletionLogEntity {
         repsSnapshot: Int?,
         secondsSnapshot: Int?,
         weightKgSnapshot: Double?,
-        loadSnapshot: Double?
+        loadSnapshot: Double?,
+        isSimulated: Bool = false
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -334,6 +336,7 @@ final class CompletionLogEntity {
         self.secondsSnapshot = secondsSnapshot
         self.weightKgSnapshot = weightKgSnapshot
         self.loadSnapshot = loadSnapshot
+        self.isSimulated = isSimulated
     }
 }
 

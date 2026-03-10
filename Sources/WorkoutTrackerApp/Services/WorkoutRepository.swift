@@ -174,6 +174,10 @@ final class WorkoutRepository: ObservableObject {
         !activeWeeklyExercises.isEmpty
     }
 
+    var hasSimulatedActivity: Bool {
+        completionLogs.contains { $0.isSimulated }
+    }
+
     var activeWeeklyHeaders: [SectionHeaderEntity] {
         sectionHeaders
             .filter { $0.weekStartDate == activeWeekStart && $0.templateID == nil }
@@ -810,6 +814,66 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func simulateActivityHistory() {
+        guard !activeWeeklyExercises.isEmpty else { return }
+        guard !hasSimulatedActivity else { return }
+
+        let calendar = Calendar.workout
+        let today = Date().startOfDayDate()
+        let totalDays = 140
+        let startDate = calendar.date(byAdding: .day, value: -(totalDays - 1), to: today) ?? today
+        let exercises = activeWeeklyExercises.sorted { $0.orderIndex < $1.orderIndex }
+
+        for dayOffset in 0..<totalDays {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startDate)?.startOfDayDate() else { continue }
+            let weekday = calendar.component(.weekday, from: date)
+            let trainingDayChance = simulatedTrainingChance(for: weekday)
+            let dayRoll = deterministicUnit("sim-day-\(Int(date.timeIntervalSince1970))")
+            guard dayRoll < trainingDayChance else { continue }
+
+            for exercise in exercises {
+                let exerciseRoll = deterministicUnit("sim-ex-\(exercise.id.uuidString)-\(Int(date.timeIntervalSince1970))")
+                let completionChance = simulatedCompletionChance(for: exercise)
+                guard exerciseRoll < completionChance else { continue }
+
+                let sets = simulatedSets(for: exercise, dayIndex: dayOffset)
+                let reps = simulatedReps(for: exercise, dayIndex: dayOffset)
+                let seconds = simulatedSeconds(for: exercise, dayIndex: dayOffset)
+                let weightKg = simulatedWeightKg(for: exercise, date: date, startDate: startDate)
+                let loadSnapshot = simulatedLoad(weightKg: weightKg, reps: reps)
+
+                context.insert(
+                    CompletionLogEntity(
+                        weekStartDate: date.startOfWorkoutWeek(),
+                        weeklyExerciseID: exercise.id,
+                        exerciseID: exercise.exerciseID,
+                        nameSnapshot: exercise.name,
+                        muscleGroupID: exercise.muscleGroupID,
+                        muscleGroupName: exercise.muscleGroupName,
+                        secondaryMuscleGroupsRaw: exercise.secondaryMuscleGroupsRaw,
+                        completedAt: date,
+                        setsSnapshot: sets,
+                        repsSnapshot: reps,
+                        secondsSnapshot: seconds,
+                        weightKgSnapshot: weightKg,
+                        loadSnapshot: loadSnapshot,
+                        isSimulated: true
+                    )
+                )
+            }
+        }
+
+        saveAndRefresh()
+    }
+
+    func removeSimulatedActivityHistory() {
+        let simulatedLogs = completionLogs.filter { $0.isSimulated }
+        for log in simulatedLogs {
+            context.delete(log)
+        }
+        saveAndRefresh()
+    }
+
     func removeExerciseFromWeek(_ exercise: WeeklyExerciseEntity) {
         exercise.removedAt = .now
         removeCompletionLog(for: exercise)
@@ -1034,7 +1098,7 @@ final class WorkoutRepository: ObservableObject {
             refreshAll()
 
             seedGainz3TemplateIfNeeded()
-
+            migratePhantomMuscleGroups()
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
             try context.save()
@@ -1232,6 +1296,42 @@ final class WorkoutRepository: ObservableObject {
                 orderIndex += 1
             }
         }
+    }
+
+    private func migratePhantomMuscleGroups() {
+        let renames: [String: String] = [
+            "Bisceps": "Biceps",
+            "Core": "Abs"
+        ]
+
+        for (oldName, newName) in renames {
+            let oldNorm = normalizeGroupName(oldName)
+
+            // Fix secondaryMuscleGroupsRaw on all entity types that store it
+            for exercise in exerciseCatalog where exercise.secondaryMuscleGroupsRaw.contains(oldName) {
+                exercise.secondaryMuscleGroupsRaw = exercise.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for item in templateExercises where item.secondaryMuscleGroupsRaw.contains(oldName) {
+                item.secondaryMuscleGroupsRaw = item.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for weekly in weeklyExercises where weekly.secondaryMuscleGroupsRaw.contains(oldName) {
+                weekly.secondaryMuscleGroupsRaw = weekly.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+            for log in completionLogs where log.secondaryMuscleGroupsRaw.contains(oldName) {
+                log.secondaryMuscleGroupsRaw = log.secondaryMuscleGroupsRaw
+                    .replacingOccurrences(of: oldName, with: newName)
+            }
+
+            // Delete the phantom MuscleGroupEntity
+            for group in muscleGroups where normalizeGroupName(group.name) == oldNorm {
+                context.delete(group)
+            }
+        }
+
+        saveAndRefresh()
     }
 
     private func migrateToSectionHeadersIfNeeded() {
@@ -1624,7 +1724,7 @@ final class WorkoutRepository: ObservableObject {
         if card.metricType == .muscleGroupSets,
            let muscleGroupID = card.muscleGroupID,
            let group = muscleGroups.first(where: { $0.id == muscleGroupID }) {
-            return group.name
+            return "\(group.name) Sets"
         }
 
         return card.title
@@ -1675,6 +1775,84 @@ final class WorkoutRepository: ObservableObject {
             return nil
         }
         return Double(reps) * kg
+    }
+
+    private func simulatedTrainingChance(for weekday: Int) -> Double {
+        switch weekday {
+        case 2, 3, 4:
+            return 0.68 // Mon-Wed
+        case 5, 6:
+            return 0.55 // Thu-Fri
+        case 7:
+            return 0.32 // Sat
+        default:
+            return 0.18 // Sun
+        }
+    }
+
+    private func simulatedCompletionChance(for exercise: WeeklyExerciseEntity) -> Double {
+        let base = exercise.seconds != nil ? 0.26 : 0.42
+        let orderPenalty = min(Double(exercise.orderIndex) * 0.03, 0.18)
+        let personality = deterministicUnit("sim-personality-\(exercise.id.uuidString)") * 0.18
+        return max(0.12, min(0.82, base + personality - orderPenalty))
+    }
+
+    private func simulatedSets(for exercise: WeeklyExerciseEntity, dayIndex: Int) -> Int? {
+        let base = exercise.sets ?? (3 + Int(deterministicUnit("sim-base-sets-\(exercise.id.uuidString)") * 3))
+        let shouldVary = deterministicUnit("sim-var-sets-\(exercise.id.uuidString)-\(dayIndex)") < 0.16
+        let delta = deterministicUnit("sim-delta-sets-\(exercise.id.uuidString)-\(dayIndex)") < 0.5 ? -1 : 1
+        let value = shouldVary ? base + delta : base
+        return max(1, value)
+    }
+
+    private func simulatedReps(for exercise: WeeklyExerciseEntity, dayIndex: Int) -> Int? {
+        guard !(exercise.seconds != nil && exercise.reps == nil) else { return nil }
+        let base = exercise.reps ?? (8 + Int(deterministicUnit("sim-base-reps-\(exercise.id.uuidString)") * 5))
+        let shouldVary = deterministicUnit("sim-var-reps-\(exercise.id.uuidString)-\(dayIndex)") < 0.2
+        let magnitude = deterministicUnit("sim-mag-reps-\(exercise.id.uuidString)-\(dayIndex)") < 0.65 ? 1 : 2
+        let sign = deterministicUnit("sim-sign-reps-\(exercise.id.uuidString)-\(dayIndex)") < 0.5 ? -1 : 1
+        let value = shouldVary ? base + (magnitude * sign) : base
+        return max(1, value)
+    }
+
+    private func simulatedSeconds(for exercise: WeeklyExerciseEntity, dayIndex: Int) -> Int? {
+        guard exercise.seconds != nil && exercise.reps == nil else { return nil }
+        let base = exercise.seconds ?? (20 + Int(deterministicUnit("sim-base-seconds-\(exercise.id.uuidString)") * 40))
+        let shouldVary = deterministicUnit("sim-var-seconds-\(exercise.id.uuidString)-\(dayIndex)") < 0.22
+        let delta = deterministicUnit("sim-sign-seconds-\(exercise.id.uuidString)-\(dayIndex)") < 0.5 ? -5 : 5
+        let value = shouldVary ? base + delta : base
+        return max(5, value)
+    }
+
+    private func simulatedWeightKg(for exercise: WeeklyExerciseEntity, date: Date, startDate: Date) -> Double? {
+        if exercise.seconds != nil && exercise.reps == nil {
+            return exercise.weightKg
+        }
+
+        let days = max(Calendar.workout.dateComponents([.day], from: startDate, to: date).day ?? 0, 0)
+        let weeks = Double(days) / 7.0
+
+        let base = exercise.weightKg
+            ?? (20 + deterministicUnit("sim-base-weight-\(exercise.id.uuidString)") * 40)
+        let weeklyTrend = (deterministicUnit("sim-trend-\(exercise.id.uuidString)") - 0.42) * 0.45
+        let jitter = (deterministicUnit("sim-jitter-\(exercise.id.uuidString)-\(days)") - 0.5) * 1.2
+
+        let value = max(2.0, base + (weeklyTrend * weeks) + jitter)
+        return (value * 2).rounded() / 2
+    }
+
+    private func simulatedLoad(weightKg: Double?, reps: Int?) -> Double? {
+        guard let weightKg, let reps else { return nil }
+        return weightKg * Double(reps)
+    }
+
+    private func deterministicUnit(_ key: String) -> Double {
+        var hash: UInt64 = 1469598103934665603
+        for byte in key.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 1099511628211
+        }
+        return Double(hash % 10_000) / 10_000.0
     }
 
     private func parseCSV(_ raw: String) -> [String] {

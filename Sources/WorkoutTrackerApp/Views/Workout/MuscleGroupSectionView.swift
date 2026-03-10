@@ -30,6 +30,8 @@ struct MuscleGroupSectionView: View {
                     .padding(.vertical, 2)
                     .background(Capsule().fill(Theme.mutedSurface))
 
+                Spacer()
+
                 Button(action: onAddExercise) {
                     Image(systemName: "plus.circle")
                 }
@@ -41,8 +43,6 @@ struct MuscleGroupSectionView: View {
                     }
                     .buttonStyle(.plain)
                 }
-
-                Spacer()
             }
             .foregroundStyle(Theme.primaryText)
 

@@ -20,9 +20,12 @@ struct ExerciseRowView: View {
     @State private var baseOffset: CGFloat = 0
     @GestureState private var dragOffset: CGFloat = 0
     @State private var didTriggerThresholdHaptic = false
+    @State private var dragIntent: RowDragIntent = .undetermined
+    @FocusState private var focusedMetric: RowMetricField?
 
     private let trailingRevealWidth: CGFloat = 134
     private let rowHeight: CGFloat = 56
+    private let swipeActivationDistance: CGFloat = 20
 
 
     var body: some View {
@@ -134,6 +137,10 @@ struct ExerciseRowView: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onTapGesture {
+                    if focusedMetric != nil {
+                        focusedMetric = nil
+                        return
+                    }
                     guard !isReordering else { return }
                     if baseOffset < 0 {
                         withAnimation(.spring) { baseOffset = 0 }
@@ -142,16 +149,28 @@ struct ExerciseRowView: View {
                     }
                 }
 
-            MetricBubble(text: setsBinding, suffix: "s", isEditable: !isReordering)
+            MetricBubble(
+                text: setsBinding,
+                suffix: "s",
+                focusedMetric: $focusedMetric,
+                focusField: .sets,
+                isEditable: !isReordering
+            )
             MetricBubble(
                 text: repsOrSecondsBinding,
                 suffix: "r",
+                minCharacterCount: 2,
+                focusedMetric: $focusedMetric,
+                focusField: .reps,
                 isEditable: !isReordering
             )
             MetricBubble(
                 text: weightBinding,
                 placeholder: "BW",
                 suffix: "kg",
+                minCharacterCount: 3,
+                focusedMetric: $focusedMetric,
+                focusField: .weight,
                 isEditable: !isReordering
             )
         }
@@ -172,12 +191,22 @@ struct ExerciseRowView: View {
             y: isActiveDragItem ? 6 : 0
         )
         .animation(.spring(response: 0.24, dampingFraction: 0.84), value: isActiveDragItem)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if focusedMetric != nil {
+                focusedMetric = nil
+            }
+        }
     }
 
     private func dragGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+        DragGesture(minimumDistance: swipeActivationDistance, coordinateSpace: .local)
             .updating($dragOffset) { value, state, _ in
                 guard !isReordering else {
+                    state = 0
+                    return
+                }
+                guard dragIntent == .horizontal else {
                     state = 0
                     return
                 }
@@ -189,12 +218,17 @@ struct ExerciseRowView: View {
                 }
             }
             .onEnded { value in
+                defer {
+                    dragIntent = .undetermined
+                    didTriggerThresholdHaptic = false
+                }
                 guard !isReordering else {
                     withAnimation(.spring(response: 0.26, dampingFraction: 0.85)) {
                         baseOffset = 0
                     }
                     return
                 }
+                guard dragIntent == .horizontal else { return }
                 let x = value.translation.width
 
                 if x > width * 0.34 {
@@ -222,6 +256,14 @@ struct ExerciseRowView: View {
             }
             .onChanged { value in
                 guard !isReordering else {
+                    dragIntent = .undetermined
+                    didTriggerThresholdHaptic = false
+                    return
+                }
+                if dragIntent == .undetermined {
+                    dragIntent = resolvedDragIntent(for: value.translation)
+                }
+                guard dragIntent == .horizontal else {
                     didTriggerThresholdHaptic = false
                     return
                 }
@@ -234,6 +276,19 @@ struct ExerciseRowView: View {
                     didTriggerThresholdHaptic = false
                 }
             }
+    }
+
+    private func resolvedDragIntent(for translation: CGSize) -> RowDragIntent {
+        let x = abs(translation.width)
+        let y = abs(translation.height)
+        guard max(x, y) >= swipeActivationDistance else { return .undetermined }
+        if x > y * 1.15 {
+            return .horizontal
+        }
+        if y > x * 1.15 {
+            return .vertical
+        }
+        return .undetermined
     }
 
     private var setsBinding: Binding<String> {
@@ -284,6 +339,18 @@ struct ExerciseRowView: View {
             }
         )
     }
+}
+
+private enum RowDragIntent {
+    case undetermined
+    case horizontal
+    case vertical
+}
+
+private enum RowMetricField: Hashable {
+    case sets
+    case reps
+    case weight
 }
 
 private struct RowDropDelegate: DropDelegate {
@@ -342,21 +409,25 @@ private struct MetricBubble: View {
     @Binding var text: String
     var placeholder: String = ""
     var suffix: String = ""
+    var minCharacterCount: Int = 1
+    var focusedMetric: FocusState<RowMetricField?>.Binding
+    var focusField: RowMetricField
     var isEditable: Bool = true
 
     private var fieldWidth: CGFloat {
-        let characterCount = max(max(text.count, placeholder.count), 1)
-        let ideal = CGFloat(characterCount) * 9 + 10
-        return min(max(ideal, 24), 50)
+        let characterCount = max(max(text.count, placeholder.count), max(minCharacterCount, 1))
+        let ideal = CGFloat(characterCount) * 8 + 2
+        return min(max(ideal, 12), 50)
     }
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             TextField(placeholder, text: $text)
                 .numbersAndPunctuationKeyboardIfAvailable()
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .frame(width: fieldWidth)
+                .focused(focusedMetric, equals: focusField)
                 .disabled(!isEditable)
 
             if !suffix.isEmpty {

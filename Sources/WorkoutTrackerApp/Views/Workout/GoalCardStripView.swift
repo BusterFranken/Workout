@@ -166,7 +166,7 @@ private struct AddGoalSheet: View {
                         case .muscleGroupSets:
                             if let id = selectedMuscleGroupID,
                                let group = repository.muscleGroups.first(where: { $0.id == id }) {
-                                title = group.name
+                                title = "\(group.name) Sets"
                             } else {
                                 title = "Muscle Sets"
                             }
@@ -196,6 +196,7 @@ private struct EditGoalSheet: View {
     @Binding var editingCard: GoalCardEntity?
 
     @State private var target: Int
+    @State private var showingDeleteConfirmation = false
 
     init(card: GoalCardEntity, editingCard: Binding<GoalCardEntity?>) {
         self.card = card
@@ -211,6 +212,14 @@ private struct EditGoalSheet: View {
                         Text("\(target)")
                     }
                 }
+
+                if !card.isSystem {
+                    Section {
+                        Button("Delete Goal", role: .destructive) {
+                            showingDeleteConfirmation = true
+                        }
+                    }
+                }
             }
             .navigationTitle("Edit Goal")
             .toolbar {
@@ -223,6 +232,19 @@ private struct EditGoalSheet: View {
                         editingCard = nil
                     }
                 }
+            }
+            .confirmationDialog(
+                "Delete this goal?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Goal", role: .destructive) {
+                    repository.archiveGoal(card)
+                    editingCard = nil
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This goal will be removed from your dashboard.")
             }
         }
     }

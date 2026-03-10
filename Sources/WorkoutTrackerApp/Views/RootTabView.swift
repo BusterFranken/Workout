@@ -25,7 +25,7 @@ struct RootTabView: View {
 
             MoreView()
                 .tabItem {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("Settings", systemImage: "ellipsis.circle")
                 }
                 .tag(RootTab.more)
         }
@@ -79,6 +79,18 @@ private struct MoreView: View {
                     }
                 }
 
+                Section("Data") {
+                    Button(simulationButtonTitle) {
+                        if repository.hasSimulatedActivity {
+                            repository.removeSimulatedActivityHistory()
+                            Haptics.warning()
+                        } else {
+                            repository.simulateActivityHistory()
+                            Haptics.success()
+                        }
+                    }
+                }
+
                 Section("About") {
                     HStack {
                         Text("Version")
@@ -88,7 +100,7 @@ private struct MoreView: View {
                     }
                 }
             }
-            .navigationTitle("More")
+            .navigationTitle("Settings")
             .platformInsetGroupedListStyle()
         }
     }
@@ -112,6 +124,10 @@ private struct MoreView: View {
         let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(version) (\(build))"
+    }
+
+    private var simulationButtonTitle: String {
+        repository.hasSimulatedActivity ? "Remove simulated activity" : "Simulate activity"
     }
 }
 

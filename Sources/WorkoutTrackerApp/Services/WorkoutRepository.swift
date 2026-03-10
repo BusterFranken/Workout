@@ -1094,6 +1094,10 @@ final class WorkoutRepository: ObservableObject {
             }
 
             seedLibraryDataIfNeeded()
+            try context.save()
+            refreshAll()
+
+            seedGainz3TemplateIfNeeded()
             migratePhantomMuscleGroups()
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
@@ -1203,6 +1207,94 @@ final class WorkoutRepository: ObservableObject {
                 weightKg: seed.weightKg
             )
             context.insert(item)
+        }
+    }
+
+    private func seedGainz3TemplateIfNeeded() {
+        if workoutTemplates.contains(where: { $0.name == SeedCatalog.gainz3TemplateName }) {
+            return
+        }
+
+        // Build legacyID → ExerciseEntity lookup
+        var legacyLookup: [Int: ExerciseEntity] = [:]
+        for seed in SeedCatalog.exercises {
+            if let entity = exerciseCatalog.first(where: {
+                normalizedKey($0.name) == normalizedKey(seed.name)
+            }) {
+                legacyLookup[seed.legacyID] = entity
+            }
+        }
+
+        // Cache newly created/found muscle groups to avoid duplicates from stale array
+        var groupCache: [String: MuscleGroupEntity] = [:]
+        func resolveGroup(named name: String) -> MuscleGroupEntity {
+            let key = normalizeGroupName(name)
+            if let cached = groupCache[key] {
+                return cached
+            }
+            let group = ensureMuscleGroup(named: name)
+            groupCache[key] = group
+            return group
+        }
+
+        let template = WorkoutTemplateEntity(name: SeedCatalog.gainz3TemplateName)
+        context.insert(template)
+
+        var orderIndex = 0
+
+        for (sectionIndex, section) in SeedCatalog.gainz3Sections.enumerated() {
+            let sectionGroup = resolveGroup(named: section.muscleGroup)
+
+            let header = SectionHeaderEntity(
+                title: section.headerTitle,
+                orderIndex: sectionIndex,
+                templateID: template.id
+            )
+            context.insert(header)
+
+            for entry in section.exercises {
+                let exercise: ExerciseEntity
+
+                if let existing = legacyLookup[entry.seedLegacyID] {
+                    exercise = existing
+                } else if let seedDef = SeedCatalog.exercises.first(where: { $0.legacyID == entry.seedLegacyID }) {
+                    let seedGroup = resolveGroup(named: seedDef.muscleGroup)
+                    let newExercise = ExerciseEntity(
+                        name: seedDef.name,
+                        primaryMuscleGroupID: seedGroup.id,
+                        primaryMuscleGroupName: seedDef.muscleGroup,
+                        secondaryMuscleGroupsRaw: seedDef.secondaryMuscleGroups.joined(separator: ","),
+                        synonymsRaw: seedDef.synonyms.joined(separator: ","),
+                        notes: seedDef.notes
+                    )
+                    context.insert(newExercise)
+                    exercise = newExercise
+                } else {
+                    let newExercise = ExerciseEntity(
+                        name: entry.displayName,
+                        primaryMuscleGroupID: sectionGroup.id,
+                        primaryMuscleGroupName: section.muscleGroup
+                    )
+                    context.insert(newExercise)
+                    exercise = newExercise
+                }
+
+                let item = WorkoutTemplateExerciseEntity(
+                    templateID: template.id,
+                    exerciseID: exercise.id,
+                    name: entry.displayName,
+                    muscleGroupID: sectionGroup.id,
+                    muscleGroupName: section.muscleGroup,
+                    orderIndex: orderIndex,
+                    sets: entry.sets,
+                    reps: entry.reps,
+                    seconds: entry.seconds,
+                    weightKg: entry.weightKg,
+                    headerID: header.id
+                )
+                context.insert(item)
+                orderIndex += 1
+            }
         }
     }
 

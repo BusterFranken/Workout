@@ -15,12 +15,29 @@ struct SeedExercise {
     let synonyms: [String]
 }
 
+struct Gainz3Section {
+    let headerTitle: String
+    let muscleGroup: String
+    let exercises: [Gainz3Exercise]
+}
+
+struct Gainz3Exercise {
+    let displayName: String
+    let seedLegacyID: Int
+    let sets: Int?
+    let reps: Int?
+    let seconds: Int?
+    let weightKg: Double?
+}
+
 enum SeedCatalog {
     static let seedVersion = 3
 
     static let defaultWeeklySetGoal = 85
 
     static let defaultTemplateName = "Gymmmmm - science based gainz - Hypertrophy"
+
+    static let gainz3TemplateName = "Science based gainz3"
 
     static let muscleGroups: [String] = [
         "Biceps",
@@ -32,7 +49,8 @@ enum SeedCatalog {
         "Grip / forearms",
         "Neck",
         "Abs",
-        "Stretch"
+        "Stretch",
+        "Cardio"
     ]
 
     static let exercises: [SeedExercise] = [
@@ -931,6 +949,187 @@ enum SeedCatalog {
             seconds: 30,
             weightKg: nil,
             synonyms: []
+        ),
+        .init(
+            legacyID: 65,
+            name: "door peck minor",
+            muscleGroup: "Stretch",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: 3,
+            reps: nil,
+            seconds: 30,
+            weightKg: nil,
+            synonyms: []
+        ),
+        .init(
+            legacyID: 66,
+            name: "Neck stretch shoulders-back dumbell assisted",
+            muscleGroup: "Stretch",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: 3,
+            reps: nil,
+            seconds: 30,
+            weightKg: 10,
+            synonyms: []
+        ),
+        .init(
+            legacyID: 67,
+            name: "Serratus anterior push up",
+            muscleGroup: "Back",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: 5,
+            reps: 12,
+            seconds: nil,
+            weightKg: nil,
+            synonyms: []
+        ),
+        .init(
+            legacyID: 68,
+            name: "Band pull apart black thin",
+            muscleGroup: "Back",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: 4,
+            reps: 20,
+            seconds: nil,
+            weightKg: nil,
+            synonyms: []
+        ),
+        .init(
+            legacyID: 69,
+            name: "Prone Y raises",
+            muscleGroup: "Back",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: 5,
+            reps: 12,
+            seconds: nil,
+            weightKg: nil,
+            synonyms: []
+        ),
+        .init(
+            legacyID: 70,
+            name: "Elliptical 10m lvl 15 random hills",
+            muscleGroup: "Cardio",
+            secondaryMuscleGroups: [],
+            notes: "",
+            weekdayIndex: nil,
+            customSlot: nil,
+            sets: nil,
+            reps: nil,
+            seconds: nil,
+            weightKg: nil,
+            synonyms: []
         )
+    ]
+
+    // MARK: - Science based gainz3 template
+
+    static let gainz3Sections: [Gainz3Section] = [
+        .init(headerTitle: "Biceps", muscleGroup: "Biceps", exercises: [
+            .init(displayName: "bicep lay back dumbels - 15degr", seedLegacyID: 2, sets: 5, reps: 12, seconds: nil, weightKg: 10),
+            .init(displayName: "Close grip pull up/chin-up", seedLegacyID: 3, sets: 5, reps: 8, seconds: nil, weightKg: nil),
+            .init(displayName: "Bicep curls", seedLegacyID: 4, sets: 5, reps: 8, seconds: nil, weightKg: 16),
+            .init(displayName: "Preacher curls", seedLegacyID: 1, sets: 5, reps: 8, seconds: nil, weightKg: 31),
+            .init(displayName: "Pyramid", seedLegacyID: 6, sets: 5, reps: 5, seconds: nil, weightKg: 25),
+            .init(displayName: "Bicep rope", seedLegacyID: 5, sets: 5, reps: 8, seconds: nil, weightKg: 31),
+        ]),
+        .init(headerTitle: "Triceps", muscleGroup: "Triceps", exercises: [
+            .init(displayName: "Skull crusher ez bar", seedLegacyID: 7, sets: 5, reps: 12, seconds: nil, weightKg: 25),
+            .init(displayName: "Tricep rope", seedLegacyID: 10, sets: 5, reps: 8, seconds: nil, weightKg: 35),
+            .init(displayName: "Overhead tricep rope", seedLegacyID: 9, sets: 5, reps: 10, seconds: nil, weightKg: 25),
+            .init(displayName: "Dips / incline dumbel press", seedLegacyID: 8, sets: 5, reps: 10, seconds: nil, weightKg: 40),
+        ]),
+        .init(headerTitle: "Chest", muscleGroup: "Chest", exercises: [
+            .init(displayName: "Bench press", seedLegacyID: 11, sets: 5, reps: 10, seconds: nil, weightKg: 70),
+            .init(displayName: "Machine/dumbell flies", seedLegacyID: 13, sets: 5, reps: 8, seconds: nil, weightKg: 18),
+            .init(displayName: "Bench press (incline)", seedLegacyID: 12, sets: 5, reps: 8, seconds: nil, weightKg: 60),
+        ]),
+        .init(headerTitle: "Back", muscleGroup: "Back", exercises: [
+            .init(displayName: "kelso shrugs (upper back)", seedLegacyID: 22, sets: 5, reps: 12, seconds: nil, weightKg: 100),
+            .init(displayName: "Hyperextension low (erectors low)", seedLegacyID: 21, sets: 5, reps: 12, seconds: nil, weightKg: nil),
+            .init(displayName: "Weighted pull ups", seedLegacyID: 20, sets: 5, reps: 7, seconds: nil, weightKg: 10),
+            .init(displayName: "Pull ups wide grip", seedLegacyID: 17, sets: 5, reps: 8, seconds: nil, weightKg: nil),
+            .init(displayName: "Deadlift (erectors)", seedLegacyID: 16, sets: 5, reps: 8, seconds: nil, weightKg: 100),
+            .init(displayName: "Cable Y Raise (lower traps)", seedLegacyID: 18, sets: 5, reps: 12, seconds: nil, weightKg: 35),
+            .init(displayName: "Rows", seedLegacyID: 19, sets: 5, reps: 8, seconds: nil, weightKg: 40),
+        ]),
+        .init(headerTitle: "Delts", muscleGroup: "Delts", exercises: [
+            .init(displayName: "Shoulder press / dumbell (front/side delt) below chin", seedLegacyID: 25, sets: 5, reps: 10, seconds: nil, weightKg: 18),
+            .init(displayName: "Lateral raises (side delt) / incl. Y raises (dumbels, thumb forward) 5x10x10kg", seedLegacyID: 24, sets: 5, reps: 10, seconds: nil, weightKg: 10),
+            .init(displayName: "Shoulder cable stretch/cross over 6kg 10x 5x", seedLegacyID: 27, sets: 5, reps: 10, seconds: nil, weightKg: 6),
+            .init(displayName: "Arnold press 10kg", seedLegacyID: 26, sets: 5, reps: 10, seconds: nil, weightKg: 10),
+            .init(displayName: "Lateral raises (cable, out and back) (rear delts) 5x10x5kg", seedLegacyID: 28, sets: 5, reps: 10, seconds: nil, weightKg: 5),
+            .init(displayName: "Rear delt machine flies", seedLegacyID: 30, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+        ]),
+        .init(headerTitle: "Legs", muscleGroup: "Legs", exercises: [
+            .init(displayName: "Lounges", seedLegacyID: 38, sets: 5, reps: 12, seconds: nil, weightKg: 60),
+            .init(displayName: "Leg extensions", seedLegacyID: 34, sets: 5, reps: 10, seconds: nil, weightKg: 70),
+            .init(displayName: "Seated cable deadlift", seedLegacyID: 31, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "Leg press deeep tand 12", seedLegacyID: 32, sets: 5, reps: 10, seconds: nil, weightKg: 115),
+            .init(displayName: "Calf raises", seedLegacyID: 37, sets: 5, reps: 8, seconds: nil, weightKg: 97),
+            .init(displayName: "Zercher squad", seedLegacyID: 36, sets: 5, reps: 12, seconds: nil, weightKg: 40),
+            .init(displayName: "Squats (deep)", seedLegacyID: 35, sets: 5, reps: 8, seconds: nil, weightKg: 80),
+            .init(displayName: "Leg curls", seedLegacyID: 33, sets: 5, reps: 10, seconds: nil, weightKg: 67),
+        ]),
+        .init(headerTitle: "Grip / forearms", muscleGroup: "Grip / forearms", exercises: [
+            .init(displayName: "Finger push up", seedLegacyID: 44, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "Curl bottom", seedLegacyID: 40, sets: 5, reps: 20, seconds: nil, weightKg: 10),
+            .init(displayName: "Hang / fingers", seedLegacyID: 41, sets: 3, reps: nil, seconds: 50, weightKg: nil),
+            .init(displayName: "Curl top", seedLegacyID: 39, sets: 5, reps: 20, seconds: nil, weightKg: 6),
+            .init(displayName: "Falsegrip", seedLegacyID: 43, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "Towel hang", seedLegacyID: 42, sets: 5, reps: nil, seconds: 30, weightKg: nil),
+            .init(displayName: "Ridge hang", seedLegacyID: 45, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+        ]),
+        .init(headerTitle: "Neck", muscleGroup: "Neck", exercises: [
+            .init(displayName: "Plate on forehead curls", seedLegacyID: 47, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "Trap raises", seedLegacyID: 46, sets: 5, reps: 14, seconds: nil, weightKg: 32),
+            .init(displayName: "Side", seedLegacyID: 49, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "Back head curls", seedLegacyID: 48, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+        ]),
+        .init(headerTitle: "Abs", muscleGroup: "Abs", exercises: [
+            .init(displayName: "cable twists", seedLegacyID: 53, sets: 4, reps: 10, seconds: nil, weightKg: 20),
+            .init(displayName: "russian twists", seedLegacyID: 59, sets: 3, reps: nil, seconds: 45, weightKg: nil),
+            .init(displayName: "side plank move", seedLegacyID: 57, sets: 3, reps: nil, seconds: 45, weightKg: nil),
+            .init(displayName: "cable crunches", seedLegacyID: 52, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "mountain climbers", seedLegacyID: 58, sets: 3, reps: nil, seconds: 45, weightKg: nil),
+            .init(displayName: "leg raises", seedLegacyID: 51, sets: 5, reps: 10, seconds: nil, weightKg: nil),
+            .init(displayName: "leg flutters", seedLegacyID: 54, sets: 3, reps: nil, seconds: 45, weightKg: nil),
+            .init(displayName: "ab roll out", seedLegacyID: 56, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "dragon flag", seedLegacyID: 50, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "bicycles", seedLegacyID: 55, sets: 3, reps: nil, seconds: 45, weightKg: nil),
+        ]),
+        .init(headerTitle: "Stretch", muscleGroup: "Stretch", exercises: [
+            .init(displayName: "lying pigeon stretches", seedLegacyID: 64, sets: 3, reps: nil, seconds: 30, weightKg: nil),
+            .init(displayName: "door peck minor", seedLegacyID: 65, sets: 3, reps: nil, seconds: 30, weightKg: nil),
+            .init(displayName: "lay on back shoulder on knees", seedLegacyID: 60, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "childs pose reach sweep", seedLegacyID: 63, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+            .init(displayName: "hammies weighted", seedLegacyID: 62, sets: 3, reps: nil, seconds: 30, weightKg: 40),
+            .init(displayName: "Neck stretch shoulders-back dumbell assisted", seedLegacyID: 66, sets: 3, reps: nil, seconds: 30, weightKg: 10),
+        ]),
+        .init(headerTitle: "Scapularis Fixerius", muscleGroup: "Back", exercises: [
+            .init(displayName: "Plate scapular sweep up", seedLegacyID: 23, sets: 5, reps: 10, seconds: nil, weightKg: 5),
+            .init(displayName: "Face pulls", seedLegacyID: 15, sets: 5, reps: 10, seconds: nil, weightKg: 15),
+            .init(displayName: "Landmine press (scapula)", seedLegacyID: 14, sets: 5, reps: 10, seconds: nil, weightKg: 40),
+            .init(displayName: "Serratus anterior push up", seedLegacyID: 67, sets: 5, reps: 12, seconds: nil, weightKg: nil),
+            .init(displayName: "Band pull apart black thin", seedLegacyID: 68, sets: 4, reps: 20, seconds: nil, weightKg: nil),
+            .init(displayName: "Prone Y raises", seedLegacyID: 69, sets: 5, reps: 12, seconds: nil, weightKg: nil),
+        ]),
+        .init(headerTitle: "Cardio", muscleGroup: "Cardio", exercises: [
+            .init(displayName: "Elliptical 10m lvl 15 random hills", seedLegacyID: 70, sets: nil, reps: nil, seconds: nil, weightKg: nil),
+        ]),
     ]
 }

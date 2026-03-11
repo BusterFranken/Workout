@@ -34,6 +34,9 @@ struct RootTabView: View {
 
 private struct MoreView: View {
     @EnvironmentObject private var repository: WorkoutRepository
+    @State private var accentOption = Theme.accentOption
+    @State private var customAccentColor = Theme.customAccentColor
+    @State private var showingHighlightColorSheet = false
 
     var body: some View {
         NavigationStack {
@@ -71,6 +74,34 @@ private struct MoreView: View {
                     .onChange(of: repository.themePreference) { _, _ in
                         Haptics.selection()
                     }
+
+                    Button {
+                        showingHighlightColorSheet = true
+                    } label: {
+                        HStack {
+                            Text("Highlight Color")
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(accentOption.color)
+                                    .frame(width: 10, height: 10)
+                                Text(accentOption.title)
+                                    .foregroundStyle(accentOption.color)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .onChange(of: accentOption) { _, newOption in
+                        Theme.updateAccentOption(newOption)
+                        Haptics.selection()
+                    }
+
+                    if accentOption == .custom {
+                        ColorPicker("Custom Color", selection: $customAccentColor, supportsOpacity: false)
+                            .onChange(of: customAccentColor) { _, newColor in
+                                Theme.updateCustomAccentColor(newColor)
+                            }
+                    }
                 }
 
                 Section("Support") {
@@ -102,6 +133,44 @@ private struct MoreView: View {
             }
             .navigationTitle("Settings")
             .platformInsetGroupedListStyle()
+            .onAppear {
+                accentOption = Theme.accentOption
+                customAccentColor = Theme.customAccentColor
+            }
+            .sheet(isPresented: $showingHighlightColorSheet) {
+                NavigationStack {
+                    List {
+                        Section("Standard Colors") {
+                            ForEach(AccentColorOption.allCases) { option in
+                                Button {
+                                    accentOption = option
+                                    showingHighlightColorSheet = false
+                                } label: {
+                                    HStack {
+                                        Circle()
+                                            .fill(option.color)
+                                            .frame(width: 10, height: 10)
+                                        Text(option.title)
+                                            .foregroundStyle(option.color)
+                                        Spacer()
+                                        if accentOption == option {
+                                            Image(systemName: "checkmark")
+                                                .foregroundStyle(Theme.secondaryText)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .navigationTitle("Highlight Color")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showingHighlightColorSheet = false }
+                        }
+                    }
+                }
+            }
         }
     }
 

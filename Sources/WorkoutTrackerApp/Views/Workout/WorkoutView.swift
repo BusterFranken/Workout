@@ -547,11 +547,66 @@ private struct RenameHeaderSheet: View {
     @Binding var isPresented: Bool
 
     @State private var name: String = ""
+    @State private var showingDeleteWarning = false
+    @State private var destinationHeaderID: UUID?
+
+    private var attachedExerciseCount: Int {
+        repository.exerciseCountForHeader(header)
+    }
+
+    private var otherHeaders: [SectionHeaderEntity] {
+        repository.activeWeeklyHeaders
+            .filter { $0.id != header.id }
+            .sorted { $0.orderIndex < $1.orderIndex }
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Header name", text: $name)
+
+                Section {
+                    Button("Delete Header", role: .destructive) {
+                        if attachedExerciseCount > 0 {
+                            if destinationHeaderID == nil {
+                                destinationHeaderID = otherHeaders.first?.id
+                            }
+                            showingDeleteWarning = true
+                        } else {
+                            repository.deleteHeader(header, moveExercisesTo: nil)
+                            isPresented = false
+                        }
+                    }
+                }
+
+                if showingDeleteWarning {
+                    Section("Move Exercises Before Deleting") {
+                        Text("This header has \(attachedExerciseCount) exercise(s), including completed ones. Choose another header to move them to before deleting this header.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+
+                        if otherHeaders.isEmpty {
+                            Text("Add another header first to move these exercises.")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondaryText)
+                        } else {
+                            Picker("Move to", selection: Binding(
+                                get: { destinationHeaderID ?? otherHeaders.first?.id ?? UUID() },
+                                set: { destinationHeaderID = $0 }
+                            )) {
+                                ForEach(otherHeaders) { otherHeader in
+                                    Text(otherHeader.title).tag(otherHeader.id)
+                                }
+                            }
+
+                            Button("Move & Delete Header", role: .destructive) {
+                                repository.deleteHeader(header, moveExercisesTo: destinationHeaderID)
+                                isPresented = false
+                            }
+                            .disabled(destinationHeaderID == nil)
+                        }
+                    }
+                }
             }
             .navigationTitle("Rename Header")
             .toolbar {
@@ -566,7 +621,10 @@ private struct RenameHeaderSheet: View {
                 }
             }
         }
-        .onAppear { name = header.title }
+        .onAppear {
+            name = header.title
+            destinationHeaderID = otherHeaders.first?.id
+        }
     }
 }
 

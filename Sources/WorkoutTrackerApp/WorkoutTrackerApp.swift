@@ -7,6 +7,7 @@ struct WorkoutsApp: App {
 
     @StateObject private var navigation = AppNavigationState()
     @StateObject private var repository: WorkoutRepository
+    @State private var accentRefreshToken = UUID()
 
     init() {
         let schema = Schema([
@@ -41,6 +42,10 @@ struct WorkoutsApp: App {
                 .environmentObject(repository)
                 .tint(Theme.accent)
                 .preferredColorScheme(colorScheme)
+                .id(accentRefreshToken)
+                .onReceive(NotificationCenter.default.publisher(for: .themeAccentDidChange)) { _ in
+                    accentRefreshToken = UUID()
+                }
         }
         .modelContainer(container)
     }
@@ -83,4 +88,3 @@ struct WorkoutsApp: App {
         .tint(Theme.accent)
 }
 #endif
-

@@ -17,6 +17,8 @@ struct TrackingView: View {
     @State private var isReordering = false
     @State private var showingWeighInSheet = false
     @State private var hoveredInsertionIndex: Int?
+    private let chartScrollThreshold = 10
+    private let chartPointWidth: CGFloat = 36
 
     var body: some View {
         NavigationStack {
@@ -133,19 +135,25 @@ struct TrackingView: View {
             Text("Sets Per Week")
                 .font(.headline)
 
-            Chart(points) { point in
-                BarMark(
-                    x: .value("Week", point.weekStart, unit: .weekOfYear),
-                    y: .value("Sets", point.sets)
-                )
-                .foregroundStyle(Theme.accent)
-                .cornerRadius(4)
+            ScrollableChartContainer(
+                entryCount: points.count,
+                threshold: chartScrollThreshold,
+                pointWidth: chartPointWidth
+            ) {
+                Chart(points) { point in
+                    BarMark(
+                        x: .value("Week", point.weekStart, unit: .weekOfYear),
+                        y: .value("Sets", point.sets)
+                    )
+                    .foregroundStyle(Theme.accent)
+                    .cornerRadius(4)
 
-                RuleMark(y: .value("Set Goal", weeklySetTarget))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                    .foregroundStyle(Theme.secondaryText)
+                    RuleMark(y: .value("Set Goal", weeklySetTarget))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+                .frame(height: 132)
             }
-            .frame(height: 132)
 
             Text("Active week total: \(repository.totalSetsDoneThisWeek)")
                 .font(.caption)
@@ -163,6 +171,7 @@ struct TrackingView: View {
         let points = repository.muscleVolumeTrend(weeks: 8)
         let groups = Array(Set(points.map(\.muscleGroup))).sorted()
         let colors = muscleTrendColors(for: groups)
+        let uniqueWeeksCount = Set(points.map(\.weekStart)).count
 
         return VStack(alignment: .leading, spacing: 10) {
             Text("Volume By Muscle Group")
@@ -173,23 +182,29 @@ struct TrackingView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
             } else {
-                Chart(points) { point in
-                    LineMark(
-                        x: .value("Week", point.weekStart),
-                        y: .value("Sets", point.sets),
-                        series: .value("Muscle", point.muscleGroup)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                ScrollableChartContainer(
+                    entryCount: uniqueWeeksCount,
+                    threshold: chartScrollThreshold,
+                    pointWidth: chartPointWidth
+                ) {
+                    Chart(points) { point in
+                        LineMark(
+                            x: .value("Week", point.weekStart),
+                            y: .value("Sets", point.sets),
+                            series: .value("Muscle", point.muscleGroup)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
 
-                    PointMark(
-                        x: .value("Week", point.weekStart),
-                        y: .value("Sets", point.sets)
-                    )
-                    .symbolSize(26)
-                    .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                        PointMark(
+                            x: .value("Week", point.weekStart),
+                            y: .value("Sets", point.sets)
+                        )
+                        .symbolSize(26)
+                        .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                    }
+                    .frame(height: 210)
                 }
-                .frame(height: 210)
 
                 if !groups.isEmpty {
                     let legendColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
@@ -294,48 +309,64 @@ struct TrackingView: View {
                         .foregroundStyle(Theme.secondaryText)
                 } else {
                     let values = Array(Set(weightHistory.map { displayedWeight($0.value) })).sorted()
+                    let visibleValues = Array(Set(weightHistory.suffix(10).map { displayedWeight($0.value) })).sorted()
                     let domain = paddedDomain(for: values)
+                    let yAxisValues = visibleValues.isEmpty ? values : visibleValues
 
-                    Chart(weightHistory) { point in
-                        LineMark(
-                            x: .value("Date", point.recordedAt),
-                            y: .value("Weight", displayedWeight(point.value))
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(Theme.accent)
+                    ScrollableChartContainer(
+                        entryCount: weightHistory.count,
+                        threshold: chartScrollThreshold,
+                        pointWidth: chartPointWidth
+                    ) {
+                        Chart(weightHistory) { point in
+                            LineMark(
+                                x: .value("Date", point.recordedAt),
+                                y: .value("Weight", displayedWeight(point.value))
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(Theme.accent)
 
-                        PointMark(
-                            x: .value("Date", point.recordedAt),
-                            y: .value("Weight", displayedWeight(point.value))
-                        )
-                        .foregroundStyle(Theme.accent)
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: weightHistory.map(\.recordedAt)) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            PointMark(
+                                x: .value("Date", point.recordedAt),
+                                y: .value("Weight", displayedWeight(point.value))
+                            )
+                            .foregroundStyle(Theme.accent)
                         }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading, values: values) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel {
-                                if let amount = value.as(Double.self) {
-                                    Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(repository.unitSystem.title)")
+                        .chartXAxis {
+                            AxisMarks(values: weightHistory.map(\.recordedAt)) { value in
+                                AxisGridLine()
+                                AxisTick()
+                                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: yAxisValues) { value in
+                                AxisGridLine()
+                                AxisTick()
+                                AxisValueLabel {
+                                    if let amount = value.as(Double.self) {
+                                        Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(repository.unitSystem.title)")
+                                    }
+                                }
+                            }
+                            AxisMarks(position: .trailing, values: yAxisValues) { value in
+                                AxisTick()
+                                AxisValueLabel {
+                                    if let amount = value.as(Double.self) {
+                                        Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(repository.unitSystem.title)")
+                                    }
                                 }
                             }
                         }
+                        .chartYScale(domain: domain)
+                        .frame(height: 120)
                     }
-                    .chartYScale(domain: domain)
-                    .frame(height: 120)
+                }
 
-                    if let latest = weightHistory.last {
-                        Text("Latest: \(displayedWeight(latest.value), specifier: "%.1f") \(repository.unitSystem.title)")
-                            .font(.caption)
-                            .foregroundStyle(Theme.secondaryText)
-                    }
+                if let latest = weightHistory.last {
+                    Text("Latest: \(displayedWeight(latest.value), specifier: "%.1f") \(repository.unitSystem.title)")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
 
@@ -349,42 +380,58 @@ struct TrackingView: View {
                         .foregroundStyle(Theme.secondaryText)
                 } else {
                     let values = Array(Set(bodyFatHistory.map(\.value))).sorted()
+                    let visibleValues = Array(Set(bodyFatHistory.suffix(10).map(\.value))).sorted()
                     let domain = paddedDomain(for: values)
+                    let yAxisValues = visibleValues.isEmpty ? values : visibleValues
 
-                    Chart(bodyFatHistory) { point in
-                        LineMark(
-                            x: .value("Date", point.recordedAt),
-                            y: .value("Visual Body Fat", point.value)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(.orange)
+                    ScrollableChartContainer(
+                        entryCount: bodyFatHistory.count,
+                        threshold: chartScrollThreshold,
+                        pointWidth: chartPointWidth
+                    ) {
+                        Chart(bodyFatHistory) { point in
+                            LineMark(
+                                x: .value("Date", point.recordedAt),
+                                y: .value("Visual Body Fat", point.value)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(.orange)
 
-                        PointMark(
-                            x: .value("Date", point.recordedAt),
-                            y: .value("Visual Body Fat", point.value)
-                        )
-                        .foregroundStyle(.orange)
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: bodyFatHistory.map(\.recordedAt)) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            PointMark(
+                                x: .value("Date", point.recordedAt),
+                                y: .value("Visual Body Fat", point.value)
+                            )
+                            .foregroundStyle(.orange)
                         }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading, values: values) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel {
-                                if let amount = value.as(Double.self) {
-                                    Text("\(amount.formatted(.number.precision(.fractionLength(0...1))))%")
+                        .chartXAxis {
+                            AxisMarks(values: bodyFatHistory.map(\.recordedAt)) { value in
+                                AxisGridLine()
+                                AxisTick()
+                                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: yAxisValues) { value in
+                                AxisGridLine()
+                                AxisTick()
+                                AxisValueLabel {
+                                    if let amount = value.as(Double.self) {
+                                        Text("\(amount.formatted(.number.precision(.fractionLength(0...1))))%")
+                                    }
+                                }
+                            }
+                            AxisMarks(position: .trailing, values: yAxisValues) { value in
+                                AxisTick()
+                                AxisValueLabel {
+                                    if let amount = value.as(Double.self) {
+                                        Text("\(amount.formatted(.number.precision(.fractionLength(0...1))))%")
+                                    }
                                 }
                             }
                         }
+                        .chartYScale(domain: domain)
+                        .frame(height: 120)
                     }
-                    .chartYScale(domain: domain)
-                    .frame(height: 120)
                 }
             }
         }
@@ -483,6 +530,37 @@ struct TrackingView: View {
             mapping[group] = palette[index % palette.count]
         }
         return mapping
+    }
+}
+
+private struct ScrollableChartContainer<Content: View>: View {
+    let entryCount: Int
+    let threshold: Int
+    let pointWidth: CGFloat
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if entryCount > threshold {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        content()
+                            .frame(width: CGFloat(entryCount) * pointWidth)
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .id("chart-end-\(entryCount)")
+                    }
+                }
+                .onAppear {
+                    proxy.scrollTo("chart-end-\(entryCount)", anchor: .trailing)
+                }
+                .onChange(of: entryCount) { _, newCount in
+                    proxy.scrollTo("chart-end-\(newCount)", anchor: .trailing)
+                }
+            }
+        } else {
+            content()
+        }
     }
 }
 
@@ -599,45 +677,57 @@ private struct PRDetailSheet: View {
                             .foregroundStyle(Theme.secondaryText)
                     } else {
                         let yValues = Array(Set(history.map(\.value))).sorted()
+                        let visibleValues = Array(Set(history.suffix(10).map(\.value))).sorted()
                         let minY = yValues.first ?? 0
                         let maxY = yValues.last ?? minY
                         let span = max(maxY - minY, 1)
                         let padding = max(span * 0.1, 0.5)
+                        let yAxisValues = visibleValues.isEmpty ? yValues : visibleValues
 
-                        Chart(history) { point in
-                            LineMark(
-                                x: .value("Date", point.date),
-                                y: .value("PR", point.value)
-                            )
-                            .interpolationMethod(.catmullRom)
-                            .foregroundStyle(Theme.accent)
+                        ScrollableChartContainer(entryCount: history.count, threshold: 10, pointWidth: 36) {
+                            Chart(history) { point in
+                                LineMark(
+                                    x: .value("Date", point.date),
+                                    y: .value("PR", point.value)
+                                )
+                                .interpolationMethod(.catmullRom)
+                                .foregroundStyle(Theme.accent)
 
-                            PointMark(
-                                x: .value("Date", point.date),
-                                y: .value("PR", point.value)
-                            )
-                            .foregroundStyle(Theme.accent)
-                        }
-                        .chartXAxis {
-                            AxisMarks(values: history.map(\.date)) { value in
-                                AxisGridLine()
-                                AxisTick()
-                                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                                PointMark(
+                                    x: .value("Date", point.date),
+                                    y: .value("PR", point.value)
+                                )
+                                .foregroundStyle(Theme.accent)
                             }
-                        }
-                        .chartYAxis {
-                            AxisMarks(position: .leading, values: yValues) { value in
-                                AxisGridLine()
-                                AxisTick()
-                                AxisValueLabel {
-                                    if let amount = value.as(Double.self) {
-                                        Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) kg")
+                            .chartXAxis {
+                                AxisMarks(values: history.map(\.date)) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading, values: yAxisValues) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    AxisValueLabel {
+                                        if let amount = value.as(Double.self) {
+                                            Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) kg")
+                                        }
+                                    }
+                                }
+                                AxisMarks(position: .trailing, values: yAxisValues) { value in
+                                    AxisTick()
+                                    AxisValueLabel {
+                                        if let amount = value.as(Double.self) {
+                                            Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) kg")
+                                        }
                                     }
                                 }
                             }
+                            .chartYScale(domain: (minY - padding)...(maxY + padding))
+                            .frame(height: 180)
                         }
-                        .chartYScale(domain: (minY - padding)...(maxY + padding))
-                        .frame(height: 180)
                     }
                 }
 

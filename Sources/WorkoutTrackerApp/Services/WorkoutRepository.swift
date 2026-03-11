@@ -582,6 +582,54 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func exerciseCountForHeader(_ header: SectionHeaderEntity) -> Int {
+        activeWeeklyExercises.filter { $0.headerID == header.id }.count
+    }
+
+    func deleteHeader(_ header: SectionHeaderEntity, moveExercisesTo destinationHeaderID: UUID?) {
+        let attachedExercises = activeWeeklyExercises
+            .filter { $0.headerID == header.id }
+
+        if !attachedExercises.isEmpty {
+            guard let destinationHeaderID,
+                  let destination = activeWeeklyHeaders.first(where: { $0.id == destinationHeaderID && $0.id != header.id })
+            else {
+                errorMessage = "Select a destination header to move exercises before deleting."
+                return
+            }
+
+            let pendingDestinationCount = pendingExercises
+                .filter { $0.headerID == destination.id }
+                .count
+            var nextPendingIndex = pendingDestinationCount
+
+            let pendingToMove = attachedExercises
+                .filter { $0.completedAt == nil }
+                .sorted { $0.orderIndex < $1.orderIndex }
+            for row in pendingToMove {
+                row.headerID = destination.id
+                row.orderIndex = nextPendingIndex
+                nextPendingIndex += 1
+            }
+
+            let doneToMove = attachedExercises.filter { $0.completedAt != nil }
+            for row in doneToMove {
+                row.headerID = destination.id
+            }
+        }
+
+        context.delete(header)
+
+        let remainingHeaders = activeWeeklyHeaders
+            .filter { $0.id != header.id }
+            .sorted { $0.orderIndex < $1.orderIndex }
+        for (index, remainingHeader) in remainingHeaders.enumerated() {
+            remainingHeader.orderIndex = index
+        }
+
+        saveAndRefresh()
+    }
+
     func renameMuscleGroup(_ group: MuscleGroupEntity, to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

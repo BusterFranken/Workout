@@ -12,6 +12,7 @@ struct WorkoutView: View {
     @State private var isExerciseReorderMode = false
     @State private var isSectionReorderMode = false
     @State private var activeDragExerciseID: UUID?
+    @State private var activeDragSectionID: UUID?
     @State private var hoveredSectionInsertionIndex: Int?
 
     @State private var showingNewWeekWarning = false
@@ -107,9 +108,31 @@ struct WorkoutView: View {
                                     view.onDrag {
                                         withAnimation(.spring(response: 0.22, dampingFraction: 0.86)) {
                                             isSectionReorderMode = true
+                                            activeDragSectionID = UUID(uuidString: section.id)
                                         }
                                         Haptics.soft()
                                         return NSItemProvider(object: section.id as NSString)
+                                    }
+                                    .overlay {
+                                        if isSectionReorderMode {
+                                            GeometryReader { proxy in
+                                                Color.clear
+                                                    .contentShape(Rectangle())
+                                                    .onDrop(
+                                                        of: [UTType.plainText],
+                                                        delegate: WorkoutSectionCardDropDelegate(
+                                                            index: index,
+                                                            cardHeight: proxy.size.height,
+                                                            activeDragSectionID: $activeDragSectionID,
+                                                            hoveredSectionInsertionIndex: $hoveredSectionInsertionIndex,
+                                                            isSectionReorderMode: $isSectionReorderMode,
+                                                            onReorder: { source, destination in
+                                                                repository.reorderWorkoutSections(from: source, to: destination)
+                                                            }
+                                                        )
+                                                    )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -238,6 +261,7 @@ struct WorkoutView: View {
                 }
                 if isSectionReorderMode {
                     isSectionReorderMode = false
+                    activeDragSectionID = nil
                     hoveredSectionInsertionIndex = nil
                 }
             }
@@ -255,27 +279,8 @@ struct WorkoutView: View {
         }
             .contentShape(Rectangle())
             .frame(height: 14)
-            .dropDestination(
-                for: String.self,
-                action: { items, _ in
-                    defer { hoveredSectionInsertionIndex = nil }
-                    guard let sourceRaw = items.first,
-                          let sourceID = UUID(uuidString: sourceRaw)
-                    else {
-                        return false
-                    }
-                    repository.reorderWorkoutSections(from: sourceID, to: index)
-                    return true
-                },
-                isTargeted: { targeted in
-                    if targeted {
-                        hoveredSectionInsertionIndex = index
-                    } else if hoveredSectionInsertionIndex == index {
-                        hoveredSectionInsertionIndex = nil
-                    }
-                }
-            )
     }
+
 
     private func dismissKeyboard() {
         #if os(iOS)
@@ -654,5 +659,51 @@ private struct SetGoalEditorSheet: View {
                 }
             }
         }
+    }
+}
+
+private struct WorkoutSectionCardDropDelegate: DropDelegate {
+    let index: Int
+    let cardHeight: CGFloat
+    @Binding var activeDragSectionID: UUID?
+    @Binding var hoveredSectionInsertionIndex: Int?
+    @Binding var isSectionReorderMode: Bool
+    let onReorder: (UUID, Int) -> Void
+
+    private func insertionIndex(for location: CGPoint) -> Int {
+        location.y < (cardHeight * 0.5) ? index : index + 1
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        activeDragSectionID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard validateDrop(info: info) else { return }
+        hoveredSectionInsertionIndex = insertionIndex(for: info.location)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard validateDrop(info: info) else { return DropProposal(operation: .cancel) }
+        hoveredSectionInsertionIndex = insertionIndex(for: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        hoveredSectionInsertionIndex = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer {
+            hoveredSectionInsertionIndex = nil
+            DispatchQueue.main.async {
+                isSectionReorderMode = false
+                activeDragSectionID = nil
+            }
+        }
+        guard let sourceID = activeDragSectionID else { return false }
+        let destination = insertionIndex(for: info.location)
+        onReorder(sourceID, destination)
+        return true
     }
 }

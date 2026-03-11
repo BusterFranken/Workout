@@ -526,11 +526,13 @@ final class WorkoutRepository: ObservableObject {
 
     func reorderWorkoutSections(from sourceHeaderID: UUID, to destinationIndex: Int) {
         var headers = activeWeeklyHeaders.sorted { $0.orderIndex < $1.orderIndex }
+        guard headers.count > 1 else { return }
         guard let sourceIndex = headers.firstIndex(where: { $0.id == sourceHeaderID }) else { return }
 
         let item = headers.remove(at: sourceIndex)
         let adjustedDestination = destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex
         let clamped = min(max(adjustedDestination, 0), headers.count)
+        guard clamped != sourceIndex else { return }
         headers.insert(item, at: clamped)
 
         for (index, header) in headers.enumerated() {

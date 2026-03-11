@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct SelectedPRItem: Identifiable {
     let id = UUID()
@@ -17,6 +18,7 @@ struct TrackingView: View {
     @State private var isReordering = false
     @State private var showingWeighInSheet = false
     @State private var hoveredInsertionIndex: Int?
+    @State private var activeDragWidgetID: TrackingWidgetID?
     private let chartScrollThreshold = 10
     private let chartPointWidth: CGFloat = 36
 
@@ -36,9 +38,31 @@ struct TrackingView: View {
                             .onDrag {
                                 withAnimation(.spring(response: 0.22, dampingFraction: 0.86)) {
                                     isReordering = true
+                                    activeDragWidgetID = widgetID
                                 }
                                 Haptics.soft()
                                 return NSItemProvider(object: widgetID.rawValue as NSString)
+                            }
+                            .overlay {
+                                if isReordering {
+                                    GeometryReader { proxy in
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                            .onDrop(
+                                                of: [UTType.plainText],
+                                                delegate: TrackingCardDropDelegate(
+                                                    index: index,
+                                                    cardHeight: proxy.size.height,
+                                                    activeDragWidgetID: $activeDragWidgetID,
+                                                    hoveredInsertionIndex: $hoveredInsertionIndex,
+                                                    isReordering: $isReordering,
+                                                    onReorder: { source, destination in
+                                                        repository.reorderTrackingWidgets(from: source, to: destination)
+                                                    }
+                                                )
+                                            )
+                                    }
+                                }
                             }
                     }
 
@@ -88,26 +112,8 @@ struct TrackingView: View {
         }
         .contentShape(Rectangle())
         .frame(height: 14)
-        .dropDestination(
-            for: String.self,
-            action: { items, _ in
-                defer { hoveredInsertionIndex = nil }
-                guard let first = items.first,
-                      let source = TrackingWidgetID(rawValue: first) else {
-                    return false
-                }
-                repository.reorderTrackingWidgets(from: source, to: index)
-                return true
-            },
-            isTargeted: { targeted in
-                if targeted {
-                    hoveredInsertionIndex = index
-                } else if hoveredInsertionIndex == index {
-                    hoveredInsertionIndex = nil
-                }
-            }
-        )
     }
+
 
     @ViewBuilder
     private func trackingWidget(_ widget: TrackingWidgetID) -> some View {
@@ -561,6 +567,52 @@ private struct ScrollableChartContainer<Content: View>: View {
         } else {
             content()
         }
+    }
+}
+
+private struct TrackingCardDropDelegate: DropDelegate {
+    let index: Int
+    let cardHeight: CGFloat
+    @Binding var activeDragWidgetID: TrackingWidgetID?
+    @Binding var hoveredInsertionIndex: Int?
+    @Binding var isReordering: Bool
+    let onReorder: (TrackingWidgetID, Int) -> Void
+
+    private func insertionIndex(for location: CGPoint) -> Int {
+        location.y < (cardHeight * 0.5) ? index : index + 1
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        activeDragWidgetID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard validateDrop(info: info) else { return }
+        hoveredInsertionIndex = insertionIndex(for: info.location)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard validateDrop(info: info) else { return DropProposal(operation: .cancel) }
+        hoveredInsertionIndex = insertionIndex(for: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        hoveredInsertionIndex = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer {
+            hoveredInsertionIndex = nil
+            DispatchQueue.main.async {
+                isReordering = false
+                activeDragWidgetID = nil
+            }
+        }
+        guard let source = activeDragWidgetID else { return false }
+        let destination = insertionIndex(for: info.location)
+        onReorder(source, destination)
+        return true
     }
 }
 

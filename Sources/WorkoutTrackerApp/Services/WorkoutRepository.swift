@@ -294,8 +294,9 @@ final class WorkoutRepository: ObservableObject {
             }
         }
 
-        return muscleGroups
-            .filter { !$0.isArchived }
+        let uniqueActiveGroups = uniqueActiveMuscleGroupsByNormalizedName()
+
+        return uniqueActiveGroups
             .sorted { $0.orderIndex < $1.orderIndex }
             .map { group in
                 let key = normalizeGroupName(group.name)
@@ -335,7 +336,7 @@ final class WorkoutRepository: ObservableObject {
         guard weeks > 0 else { return [] }
         let calendar = Calendar.workout
 
-        let activeGroups = muscleGroups.filter { !$0.isArchived }
+        let activeGroups = uniqueActiveMuscleGroupsByNormalizedName()
         var points: [MuscleTrendPoint] = []
 
         for offset in stride(from: weeks - 1, through: 0, by: -1) {
@@ -531,6 +532,14 @@ final class WorkoutRepository: ObservableObject {
     func renameMuscleGroup(_ group: MuscleGroupEntity, to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        guard !muscleGroups.contains(where: {
+            !$0.isArchived
+                && $0.id != group.id
+                && normalizeGroupName($0.name) == normalizeGroupName(trimmed)
+        }) else {
+            errorMessage = "A muscle group with that name already exists."
+            return
+        }
 
         let oldNormalized = normalizeGroupName(group.name)
         group.name = trimmed
@@ -1866,6 +1875,23 @@ final class WorkoutRepository: ObservableObject {
         value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+
+    private func uniqueActiveMuscleGroupsByNormalizedName() -> [MuscleGroupEntity] {
+        var seen: Set<String> = []
+        var result: [MuscleGroupEntity] = []
+
+        for group in muscleGroups
+            .filter({ !$0.isArchived })
+            .sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            let key = normalizeGroupName(group.name)
+            guard !key.isEmpty else { continue }
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(group)
+        }
+
+        return result
     }
 
     private func normalizedKey(_ value: String) -> String {

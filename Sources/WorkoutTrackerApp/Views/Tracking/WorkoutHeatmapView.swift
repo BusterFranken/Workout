@@ -13,8 +13,15 @@ struct WorkoutHeatmapView: View {
     private let monthRowSpacing: CGFloat = 5
     private let monthLabelWidth: CGFloat = 34
 
+    private struct HeatmapScale {
+        let q1: Int
+        let q2: Int
+        let q3: Int
+    }
+
     var body: some View {
         let grid = buildGrid()
+        let scale = buildScale()
 
         VStack(alignment: .leading, spacing: 10) {
             Text("Workout Days")
@@ -56,7 +63,7 @@ struct WorkoutHeatmapView: View {
                                         VStack(spacing: rowSpacing) {
                                             ForEach(0..<7, id: \.self) { row in
                                                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                    .fill(color(for: grid.values[column][row]))
+                                                    .fill(color(for: grid.values[column][row], scale: scale))
                                                     .frame(width: cellSize, height: cellSize)
                                             }
                                         }
@@ -85,17 +92,38 @@ struct WorkoutHeatmapView: View {
         .appCard()
     }
 
-    private func color(for value: Int) -> Color {
-        switch value {
-        case 0:
-            return Theme.mutedSurface
-        case 1:
-            return Theme.accent.opacity(0.35)
-        case 2:
-            return Theme.accent.opacity(0.6)
-        default:
+    private func color(for value: Int, scale: HeatmapScale?) -> Color {
+        guard value > 0 else { return Theme.mutedSurface }
+        guard let scale else { return Theme.accent.opacity(0.35) }
+
+        if value <= scale.q1 {
+            return Theme.accent.opacity(0.28)
+        } else if value <= scale.q2 {
+            return Theme.accent.opacity(0.5)
+        } else if value <= scale.q3 {
+            return Theme.accent.opacity(0.75)
+        } else {
             return Theme.accent
         }
+    }
+
+    private func buildScale() -> HeatmapScale? {
+        let nonZero = points
+            .map(\.sessions)
+            .filter { $0 > 0 }
+            .sorted()
+        guard !nonZero.isEmpty else { return nil }
+
+        func quantile(_ p: Double) -> Int {
+            let index = Int((Double(nonZero.count - 1) * p).rounded(.down))
+            return nonZero[index]
+        }
+
+        return HeatmapScale(
+            q1: quantile(0.25),
+            q2: quantile(0.5),
+            q3: quantile(0.75)
+        )
     }
 
     private func xOffset(for column: Int, cellSize: CGFloat) -> CGFloat {

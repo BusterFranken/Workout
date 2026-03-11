@@ -119,6 +119,12 @@ final class WorkoutRepository: ObservableObject {
     private let secondaryMuscleWeight: Double = 0.5
 
     private let customSlots = ["A", "B", "C", "D", "E"]
+    private let defaultPRTrackers: [(label: String, token: String)] = [
+        ("Deadlift", "deadlift"),
+        ("Weighted Pull Ups", "weighted pull"),
+        ("Bench Press", "bench press"),
+        ("Squat", "squat")
+    ]
     private let weekdayHeaders: [(Int, String)] = [
         (1, "Monday"),
         (2, "Tuesday"),
@@ -260,8 +266,12 @@ final class WorkoutRepository: ObservableObject {
         var cursor = firstLogDate
 
         while cursor <= today {
-            let sessions = completionLogs.filter { $0.completedAt.startOfDayDate() == cursor }.count
-            points.append(DayActivityPoint(date: cursor, sessions: sessions))
+            let dailySets = completionLogs
+                .filter { $0.completedAt.startOfDayDate() == cursor }
+                .reduce(0) { partial, log in
+                    partial + max(log.setsSnapshot ?? 0, 0)
+                }
+            points.append(DayActivityPoint(date: cursor, sessions: dailySets))
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
         }
@@ -385,24 +395,33 @@ final class WorkoutRepository: ObservableObject {
     }
 
     func classicPRs() -> [ExercisePRSnapshot] {
-        let tags = [
-            "Deadlift": "deadlift",
-            "Pull Ups": "pull up",
-            "Weighted Pull Ups": "weighted pull",
-            "Bench Press": "bench press",
-            "Squat": "squat"
-        ]
+        let defaults = defaultPRTrackers
+        let defaultLabelKeys = Set(defaults.map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
 
-        return tags.map { label, token in
+        var seenCustomKeys: Set<String> = []
+        let customLabels = prRecords
+            .map(\.exerciseLabel)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { label in
+                let key = label.lowercased()
+                guard !defaultLabelKeys.contains(key), !seenCustomKeys.contains(key) else { return false }
+                seenCustomKeys.insert(key)
+                return true
+            }
+        let trackedLabels = defaults.map(\.label) + customLabels
+
+        return trackedLabels.map { label in
+            let token = defaults.first { $0.label.caseInsensitiveCompare(label) == .orderedSame }?.token ?? label.lowercased()
             let logBest = completionLogs
                 .filter { $0.nameSnapshot.lowercased().contains(token) }
-                .max { ($0.loadSnapshot ?? 0) < ($1.loadSnapshot ?? 0) }
+                .max { ($0.weightKgSnapshot ?? 0) < ($1.weightKgSnapshot ?? 0) }
 
             let manualBest = prRecords
-                .filter { $0.exerciseLabel.caseInsensitiveCompare(label) == .orderedSame }
+                .filter { $0.exerciseLabel.caseInsensitiveCompare(label) == .orderedSame && $0.value > 0 }
                 .max { $0.value < $1.value }
 
-            let logValue = logBest?.loadSnapshot ?? 0
+            let logValue = logBest?.weightKgSnapshot ?? 0
             let manualValue = manualBest?.value ?? 0
 
             if manualValue > logValue {
@@ -419,12 +438,12 @@ final class WorkoutRepository: ObservableObject {
         let fromLogs = completionLogs
             .filter { $0.nameSnapshot.lowercased().contains(token) }
             .compactMap { log -> PRPoint? in
-                guard let value = log.loadSnapshot, value > 0 else { return nil }
+                guard let value = log.weightKgSnapshot, value > 0 else { return nil }
                 return PRPoint(date: log.completedAt, value: value, source: "Auto")
             }
 
         let fromManual = prRecords
-            .filter { $0.exerciseLabel.caseInsensitiveCompare(label) == .orderedSame }
+            .filter { $0.exerciseLabel.caseInsensitiveCompare(label) == .orderedSame && $0.value > 0 }
             .map { PRPoint(date: $0.recordedAt, value: $0.value, source: "Manual") }
 
         return (fromLogs + fromManual).sorted { $0.date < $1.date }
@@ -433,6 +452,23 @@ final class WorkoutRepository: ObservableObject {
     func addPRRecord(label: String, value: Double, notes: String = "") {
         guard value > 0 else { return }
         context.insert(PRRecordEntity(exerciseLabel: label, value: value, notes: notes))
+        saveAndRefresh()
+    }
+
+    func addPRTracker(label: String) {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let existsInDefaults = defaultPRTrackers.contains {
+            $0.label.caseInsensitiveCompare(trimmed) == .orderedSame
+        }
+        let existsInCustom = prRecords.contains {
+            $0.exerciseLabel.caseInsensitiveCompare(trimmed) == .orderedSame
+        }
+        guard !existsInDefaults && !existsInCustom else { return }
+
+        // Value 0 marks a tracked PR label without creating an actual PR datapoint yet.
+        context.insert(PRRecordEntity(exerciseLabel: trimmed, value: 0, notes: "tracker"))
         saveAndRefresh()
     }
 
@@ -481,9 +517,26 @@ final class WorkoutRepository: ObservableObject {
         var order = trackingWidgetOrder
         guard let sourceIndex = order.firstIndex(of: source) else { return }
         let item = order.remove(at: sourceIndex)
-        let clamped = min(max(destinationIndex, 0), order.count)
+        let adjustedDestination = destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex
+        let clamped = min(max(adjustedDestination, 0), order.count)
         order.insert(item, at: clamped)
         settings?.trackingWidgetOrderRaw = order.map(\.rawValue).joined(separator: ",")
+        saveAndRefresh()
+    }
+
+    func reorderWorkoutSections(from sourceHeaderID: UUID, to destinationIndex: Int) {
+        var headers = activeWeeklyHeaders.sorted { $0.orderIndex < $1.orderIndex }
+        guard let sourceIndex = headers.firstIndex(where: { $0.id == sourceHeaderID }) else { return }
+
+        let item = headers.remove(at: sourceIndex)
+        let adjustedDestination = destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex
+        let clamped = min(max(adjustedDestination, 0), headers.count)
+        headers.insert(item, at: clamped)
+
+        for (index, header) in headers.enumerated() {
+            header.orderIndex = index
+        }
+
         saveAndRefresh()
     }
 

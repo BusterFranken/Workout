@@ -33,15 +33,19 @@ struct MuscleGroupSectionView: View {
                 Spacer()
 
                 Button(action: onAddExercise) {
-                    Image(systemName: "plus.circle")
+                    Image(systemName: "plus")
+                        .font(.headline)
+                        .foregroundStyle(Theme.accent)
                 }
                 .buttonStyle(.plain)
+                .disabled(isReordering)
 
                 if section.sectionHeader != nil {
                     Button(action: onRenameSection) {
                         Image(systemName: "pencil")
                     }
                     .buttonStyle(.plain)
+                    .disabled(isReordering)
                 }
             }
             .foregroundStyle(Theme.primaryText)
@@ -99,6 +103,7 @@ struct MuscleGroupSectionView: View {
                         insertionLine
                     }
                 }
+                .allowsHitTesting(!isReordering)
             }
         }
         .padding()
@@ -116,17 +121,19 @@ struct MuscleGroupSectionView: View {
                     .padding(.bottom, 8)
             }
         }
-        .onDrop(
-            of: [UTType.plainText],
-            delegate: SectionDropDelegate(
-                sectionID: section.id,
-                activeDragExerciseID: activeDragExerciseID,
-                isSectionDropTargeted: $isSectionDropTargeted,
-                hoveredInsertionIndex: $hoveredInsertionIndex,
-                totalRows: section.rows.count,
-                onDropOnSection: onDropOnSection
+        .if(!isReordering) { view in
+            view.onDrop(
+                of: [UTType.plainText],
+                delegate: SectionDropDelegate(
+                    sectionID: section.id,
+                    activeDragExerciseID: activeDragExerciseID,
+                    isSectionDropTargeted: $isSectionDropTargeted,
+                    hoveredInsertionIndex: $hoveredInsertionIndex,
+                    totalRows: section.rows.count,
+                    onDropOnSection: onDropOnSection
+                )
             )
-        )
+        }
     }
 
     private var insertionLine: some View {
@@ -135,6 +142,20 @@ struct MuscleGroupSectionView: View {
             .frame(height: 2)
             .padding(.horizontal, 12)
             .padding(.vertical, 2)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func `if`<Transformed: View>(
+        _ condition: Bool,
+        transform: (Self) -> Transformed
+    ) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
     }
 }
 

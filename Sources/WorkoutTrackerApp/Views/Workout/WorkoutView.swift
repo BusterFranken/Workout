@@ -2,6 +2,7 @@ import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
+import UniformTypeIdentifiers
 
 struct WorkoutView: View {
     @EnvironmentObject private var repository: WorkoutRepository
@@ -9,7 +10,9 @@ struct WorkoutView: View {
 
     @State private var isGoalEditMode = false
     @State private var isExerciseReorderMode = false
+    @State private var isSectionReorderMode = false
     @State private var activeDragExerciseID: UUID?
+    @State private var hoveredSectionInsertionIndex: Int?
 
     @State private var showingNewWeekWarning = false
     @State private var showingDeleteDialog = false
@@ -50,10 +53,14 @@ struct WorkoutView: View {
                         emptyStateCard
                     } else {
                         VStack(alignment: .leading, spacing: 14) {
-                            ForEach(repository.workoutSections) { section in
+                            ForEach(Array(repository.workoutSections.enumerated()), id: \.element.id) { index, section in
+                                if repository.workoutViewMode == .muscleGroups && isSectionReorderMode {
+                                    sectionInsertionDropZone(at: index)
+                                }
+
                                 MuscleGroupSectionView(
                                     section: section,
-                                    isReordering: isExerciseReorderMode,
+                                    isReordering: isExerciseReorderMode || isSectionReorderMode,
                                     activeDragExerciseID: activeDragExerciseID,
                                     onRenameSection: {
                                         if let header = section.sectionHeader {
@@ -93,6 +100,28 @@ struct WorkoutView: View {
                                         endExerciseReorderMode()
                                     }
                                 )
+                                .if(
+                                    repository.workoutViewMode == .muscleGroups
+                                    && section.sectionHeader != nil
+                                ) { view in
+                                    view.onDrag {
+                                        withAnimation(.spring(response: 0.22, dampingFraction: 0.86)) {
+                                            isSectionReorderMode = true
+                                        }
+                                        Haptics.soft()
+                                        return NSItemProvider(object: section.id as NSString)
+                                    }
+                                }
+                            }
+
+                            if repository.workoutViewMode == .muscleGroups && isSectionReorderMode {
+                                sectionInsertionDropZone(at: repository.workoutSections.count)
+                            }
+
+                            if isSectionReorderMode {
+                                Text("Drag headers to reorder")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.secondaryText)
                             }
 
                             if repository.shouldShowAddHeadingHint {
@@ -207,8 +236,45 @@ struct WorkoutView: View {
                 if isExerciseReorderMode {
                     endExerciseReorderMode()
                 }
+                if isSectionReorderMode {
+                    isSectionReorderMode = false
+                    hoveredSectionInsertionIndex = nil
+                }
             }
         }
+    }
+
+    private func sectionInsertionDropZone(at index: Int) -> some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.clear.opacity(0.001))
+
+            Rectangle()
+                .fill(hoveredSectionInsertionIndex == index ? Theme.accent : .clear)
+                .frame(height: hoveredSectionInsertionIndex == index ? 3 : 1)
+        }
+            .contentShape(Rectangle())
+            .frame(height: 14)
+            .dropDestination(
+                for: String.self,
+                action: { items, _ in
+                    defer { hoveredSectionInsertionIndex = nil }
+                    guard let sourceRaw = items.first,
+                          let sourceID = UUID(uuidString: sourceRaw)
+                    else {
+                        return false
+                    }
+                    repository.reorderWorkoutSections(from: sourceID, to: index)
+                    return true
+                },
+                isTargeted: { targeted in
+                    if targeted {
+                        hoveredSectionInsertionIndex = index
+                    } else if hoveredSectionInsertionIndex == index {
+                        hoveredSectionInsertionIndex = nil
+                    }
+                }
+            )
     }
 
     private func dismissKeyboard() {
@@ -456,6 +522,20 @@ struct WorkoutView: View {
         withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
             activeDragExerciseID = nil
             isExerciseReorderMode = false
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func `if`<Transformed: View>(
+        _ condition: Bool,
+        transform: (Self) -> Transformed
+    ) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
         }
     }
 }

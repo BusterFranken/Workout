@@ -1507,6 +1507,120 @@ final class WorkoutRepository: ObservableObject {
         }
     }
 
+    // MARK: - Data Export / Import
+
+    func exportAllData() -> Data {
+        let allTemplates = (try? context.fetch(FetchDescriptor<WorkoutTemplateEntity>())) ?? []
+
+        let accentRaw = UserDefaults.standard.string(forKey: "accentOptionRaw")
+        let hasCustomColor = UserDefaults.standard.object(forKey: "customAccentRed") != nil
+        let customRed: Double? = hasCustomColor ? UserDefaults.standard.double(forKey: "customAccentRed") : nil
+        let customGreen: Double? = hasCustomColor ? UserDefaults.standard.double(forKey: "customAccentGreen") : nil
+        let customBlue: Double? = hasCustomColor ? UserDefaults.standard.double(forKey: "customAccentBlue") : nil
+        let customAlpha: Double? = hasCustomColor ? UserDefaults.standard.double(forKey: "customAccentAlpha") : nil
+
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+
+        let export = WorkoutDataExport(
+            exportVersion: 1,
+            exportedAt: Date(),
+            appVersion: version,
+            muscleGroups: muscleGroups.map { MuscleGroupDTO(from: $0) },
+            exercises: exerciseCatalog.map { ExerciseDTO(from: $0) },
+            workoutTemplates: allTemplates.map { WorkoutTemplateDTO(from: $0) },
+            workoutTemplateExercises: templateExercises.map { WorkoutTemplateExerciseDTO(from: $0) },
+            weeklyExercises: weeklyExercises.map { WeeklyExerciseDTO(from: $0) },
+            completionLogs: completionLogs.map { CompletionLogDTO(from: $0) },
+            goalCards: goalCards.map { GoalCardDTO(from: $0) },
+            bodyMetricEntries: bodyMetricEntries.map { BodyMetricEntryDTO(from: $0) },
+            prRecords: prRecords.map { PRRecordDTO(from: $0) },
+            sectionHeaders: sectionHeaders.map { SectionHeaderDTO(from: $0) },
+            appSettings: settings.map { AppSettingsDTO(from: $0) },
+            themeAccentOptionRaw: accentRaw,
+            customAccentRed: customRed,
+            customAccentGreen: customGreen,
+            customAccentBlue: customBlue,
+            customAccentAlpha: customAlpha
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return (try? encoder.encode(export)) ?? Data()
+    }
+
+    func importAllData(from data: Data) throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let export: WorkoutDataExport
+        do {
+            export = try decoder.decode(WorkoutDataExport.self, from: data)
+        } catch {
+            throw DataImportError.invalidFormat(error.localizedDescription)
+        }
+
+        guard export.exportVersion <= 1 else {
+            throw DataImportError.unsupportedVersion(export.exportVersion)
+        }
+
+        // Delete all existing entities
+        let entityTypes: [any PersistentModel.Type] = [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            SectionHeaderEntity.self,
+            AppSettingsEntity.self
+        ]
+
+        for type in entityTypes {
+            deleteAll(ofType: type)
+        }
+
+        // Insert new entities
+        for dto in export.muscleGroups { context.insert(dto.toEntity()) }
+        for dto in export.exercises { context.insert(dto.toEntity()) }
+        for dto in export.workoutTemplates { context.insert(dto.toEntity()) }
+        for dto in export.workoutTemplateExercises { context.insert(dto.toEntity()) }
+        for dto in export.weeklyExercises { context.insert(dto.toEntity()) }
+        for dto in export.completionLogs { context.insert(dto.toEntity()) }
+        for dto in export.goalCards { context.insert(dto.toEntity()) }
+        for dto in export.bodyMetricEntries { context.insert(dto.toEntity()) }
+        for dto in export.prRecords { context.insert(dto.toEntity()) }
+        for dto in export.sectionHeaders { context.insert(dto.toEntity()) }
+        if let settingsDTO = export.appSettings {
+            context.insert(settingsDTO.toEntity())
+        }
+
+        // Restore theme preferences
+        if let accentRaw = export.themeAccentOptionRaw,
+           let option = AccentColorOption(rawValue: accentRaw) {
+            Theme.updateAccentOption(option)
+        }
+        if let r = export.customAccentRed,
+           let g = export.customAccentGreen,
+           let b = export.customAccentBlue {
+            let a = export.customAccentAlpha ?? 1.0
+            Theme.updateCustomAccentColor(Color(red: r, green: g, blue: b, opacity: a))
+        }
+
+        saveAndRefresh()
+    }
+
+    private func deleteAll<T: PersistentModel>(ofType type: T.Type) {
+        if let items = try? context.fetch(FetchDescriptor<T>()) {
+            for item in items {
+                context.delete(item)
+            }
+        }
+    }
+
     private func saveAndRefresh() {
         do {
             try context.save()

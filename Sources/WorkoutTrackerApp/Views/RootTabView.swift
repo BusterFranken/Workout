@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct RootTabView: View {
     @EnvironmentObject private var navigation: AppNavigationState
@@ -37,6 +38,13 @@ private struct MoreView: View {
     @State private var accentOption = Theme.accentOption
     @State private var customAccentColor = Theme.customAccentColor
     @State private var showingHighlightColorSheet = false
+    @State private var exportDocument: DataExportDocument?
+    @State private var showExporter = false
+    @State private var showImportConfirmation = false
+    @State private var showImporter = false
+    @State private var importError: String?
+    @State private var showImportError = false
+    @State private var showImportSuccess = false
 
     var body: some View {
         NavigationStack {
@@ -111,6 +119,19 @@ private struct MoreView: View {
                 }
 
                 Section("Data") {
+                    Button {
+                        exportDocument = DataExportDocument(data: repository.exportAllData())
+                        showExporter = true
+                    } label: {
+                        Label("Export Data", systemImage: "square.and.arrow.up")
+                    }
+
+                    Button {
+                        showImportConfirmation = true
+                    } label: {
+                        Label("Import Data", systemImage: "square.and.arrow.down")
+                    }
+
                     Button(simulationButtonTitle) {
                         if repository.hasSimulatedActivity {
                             repository.removeSimulatedActivityHistory()
@@ -171,6 +192,74 @@ private struct MoreView: View {
                     }
                 }
             }
+            .fileExporter(
+                isPresented: $showExporter,
+                document: exportDocument,
+                contentType: .json,
+                defaultFilename: exportFilename
+            ) { result in
+                if case .failure(let error) = result {
+                    importError = error.localizedDescription
+                    showImportError = true
+                }
+            }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                handleImport(result)
+            }
+            .alert("Replace All Data?", isPresented: $showImportConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Replace", role: .destructive) {
+                    showImporter = true
+                }
+            } message: {
+                Text("This will delete all current data and replace it with the imported file. This cannot be undone.")
+            }
+            .alert("Import Failed", isPresented: $showImportError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(importError ?? "Unknown error")
+            }
+            .alert("Import Successful", isPresented: $showImportSuccess) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("All data has been restored from the backup.")
+            }
+        }
+    }
+
+    private var exportFilename: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return "WorkoutTracker-Export-\(formatter.string(from: Date())).json"
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+            do {
+                let data = try Data(contentsOf: url)
+                try repository.importAllData(from: data)
+                accentOption = Theme.accentOption
+                customAccentColor = Theme.customAccentColor
+                Haptics.success()
+                showImportSuccess = true
+            } catch {
+                Haptics.warning()
+                importError = error.localizedDescription
+                showImportError = true
+            }
+        case .failure(let error):
+            Haptics.warning()
+            importError = error.localizedDescription
+            showImportError = true
         }
     }
 

@@ -29,6 +29,7 @@
 		AFBE7D214DD536E692EEE7B6 /* WorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CAFADF66B8E44B86373CE9 /* WorkoutRepository.swift */; };
 		B23428442F534ED700DFEE0C /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B23428432F534ED700DFEE0C /* Haptics.swift */; };
 		F3131CAC1B6CE3075C85101F /* WorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30383CBEAC1E46BF7ED99F98 /* WorkoutView.swift */; };
+		D1A2B3C4E5F607182930ABCD /* DataTransferModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F607182930ABCE /* DataTransferModels.swift */; };
 		F80B1EBF935DB5E6EF5934DE /* PersistedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6038DAF640EB750D1F5077 /* PersistedModels.swift */; };
 /* End PBXBuildFile section */
 
@@ -55,6 +56,7 @@
 		CBD88EDCF118FC94501D8E8E /* GoalCardStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCardStripView.swift; sourceTree = "<group>"; };
 		CE38DE49850FA0229BC4AA24 /* ExerciseEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseEditorSheet.swift; sourceTree = "<group>"; };
 		CFCA496331DA95B78CB095FE /* ImportWorkoutSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportWorkoutSheet.swift; sourceTree = "<group>"; };
+		D1A2B3C4E5F607182930ABCE /* DataTransferModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataTransferModels.swift; sourceTree = "<group>"; };
 		DC6038DAF640EB750D1F5077 /* PersistedModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedModels.swift; sourceTree = "<group>"; };
 		E642C2FF7DEB5EBF1EC6C0FA /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		FBD2A19E1BF459B97D8E43E1 /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				FBD2A19E1BF459B97D8E43E1 /* AppNavigationState.swift */,
+				D1A2B3C4E5F607182930ABCE /* DataTransferModels.swift */,
 				DC6038DAF640EB750D1F5077 /* PersistedModels.swift */,
 			);
 			path = Models;
@@ -247,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BA455EB8D0D0052AAA142AD /* AppNavigationState.swift in Sources */,
+				D1A2B3C4E5F607182930ABCD /* DataTransferModels.swift in Sources */,
 				65BA82AC7F37CC60918C8805 /* Date+Week.swift in Sources */,
 				B23428442F534ED700DFEE0C /* Haptics.swift in Sources */,
 				3B0C3A814C0AE540075B2539 /* ExerciseDetailSheet.swift in Sources */,

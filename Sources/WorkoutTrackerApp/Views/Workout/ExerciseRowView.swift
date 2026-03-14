@@ -414,15 +414,22 @@ private struct MetricBubble: View {
     var focusField: RowMetricField
     var isEditable: Bool = true
 
+    @State private var localText: String = ""
+
+    private var isFocused: Bool {
+        focusedMetric.wrappedValue == focusField
+    }
+
     private var fieldWidth: CGFloat {
-        let characterCount = max(max(text.count, placeholder.count), max(minCharacterCount, 1))
+        let displayText = isFocused ? localText : text
+        let characterCount = max(max(displayText.count, placeholder.count), max(minCharacterCount, 1))
         let ideal = CGFloat(characterCount) * 8 + 2
         return min(max(ideal, 12), 50)
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            TextField(placeholder, text: $text)
+            TextField(placeholder, text: $localText)
                 .numbersAndPunctuationKeyboardIfAvailable()
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -442,6 +449,17 @@ private struct MetricBubble: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .fill(Theme.mutedSurface)
         )
+        .onAppear { localText = text }
+        .onChange(of: text) { _, newValue in
+            if !isFocused { localText = newValue }
+        }
+        .onChange(of: focusedMetric.wrappedValue) { _, newFocus in
+            if newFocus == focusField {
+                localText = text
+            } else if localText != text {
+                text = localText
+            }
+        }
     }
 }
 

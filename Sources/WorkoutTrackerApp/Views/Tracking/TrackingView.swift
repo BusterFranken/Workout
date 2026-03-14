@@ -789,7 +789,7 @@ private struct PRDetailSheet: View {
                     TextField("Optional note", text: $note)
 
                     Button("Save PR") {
-                        if let parsed = Double(value), parsed > 0 {
+                        if let parsed = Double(value.replacingOccurrences(of: ",", with: ".")), parsed > 0 {
                             repository.addPRRecord(label: label, value: parsed, notes: note)
                             value = ""
                             note = ""
@@ -797,7 +797,7 @@ private struct PRDetailSheet: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(Double(value) == nil)
+                    .disabled(Double(value.replacingOccurrences(of: ",", with: ".")) == nil)
                 }
             }
             .navigationTitle(label)

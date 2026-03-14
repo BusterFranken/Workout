@@ -28,7 +28,7 @@ enum WorkoutImportParser {
     private static func parseLine(_ line: String) -> ParsedImportLine {
         var parsed = ParsedImportLine(name: line, sets: nil, reps: nil, seconds: nil, weightKg: nil)
 
-        let normalized = line.lowercased().replacingOccurrences(of: " ", with: "")
+        let normalized = line.lowercased().replacingOccurrences(of: " ", with: "").replacingOccurrences(of: ",", with: ".")
 
         if let match = normalized.range(of: #"(\d{1,2})x(\d{1,3})"#, options: .regularExpression) {
             let pair = String(normalized[match]).split(separator: "x")
@@ -58,7 +58,7 @@ enum WorkoutImportParser {
     private static func stripMetrics(from line: String) -> String {
         let stripped = line
             .replacingOccurrences(of: #"\d+\s*x\s*\d+"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"\d+(?:\.\d+)?\s*kg(?:\s*x\s*\d+)?"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\d+(?:[.,]\d+)?\s*kg(?:\s*x\s*\d+)?"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\d+\s*s"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: "  ", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)

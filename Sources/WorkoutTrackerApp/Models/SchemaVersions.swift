@@ -243,10 +243,44 @@ enum SchemaV2: VersionedSchema {
     }
 }
 
-// MARK: - V3 (adds sub-muscle fields)
+// MARK: - V3 (adds sub-muscle fields — frozen snapshot)
 
 enum SchemaV3: VersionedSchema {
     static var versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            V3SectionHeaderEntity.self
+        ]
+    }
+
+    @Model final class V3SectionHeaderEntity {
+        @Attribute(.unique) var id: UUID
+        var title: String
+        var orderIndex: Int
+        var weekStartDate: Date?
+        var templateID: UUID?
+        var createdAt: Date
+        init(id: UUID = UUID(), title: String = "", orderIndex: Int = 0, weekStartDate: Date? = nil, templateID: UUID? = nil, createdAt: Date = .now) {
+            self.id = id; self.title = title; self.orderIndex = orderIndex; self.weekStartDate = weekStartDate; self.templateID = templateID; self.createdAt = createdAt
+        }
+    }
+}
+
+// MARK: - V4 (adds weeklyGoal to SectionHeaderEntity)
+
+enum SchemaV4: VersionedSchema {
+    static var versionIdentifier = Schema.Version(4, 0, 0)
 
     static var models: [any PersistentModel.Type] {
         [
@@ -269,11 +303,11 @@ enum SchemaV3: VersionedSchema {
 
 enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4]
     }
 
     static let migrateV1toV2 = MigrationStage.lightweight(
@@ -284,5 +318,10 @@ enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static let migrateV2toV3 = MigrationStage.lightweight(
         fromVersion: SchemaV2.self,
         toVersion: SchemaV3.self
+    )
+
+    static let migrateV3toV4 = MigrationStage.lightweight(
+        fromVersion: SchemaV3.self,
+        toVersion: SchemaV4.self
     )
 }

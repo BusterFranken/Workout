@@ -578,6 +578,7 @@ private struct RenameHeaderSheet: View {
     @Binding var isPresented: Bool
 
     @State private var name: String = ""
+    @State private var weeklyGoal: Int = 0
     @State private var showingDeleteWarning = false
     @State private var destinationHeaderID: UUID?
 
@@ -595,6 +596,16 @@ private struct RenameHeaderSheet: View {
         NavigationStack {
             Form {
                 TextField("Header name", text: $name)
+
+                Section("Weekly Goal") {
+                    Toggle("Set exercise goal", isOn: Binding(
+                        get: { weeklyGoal > 0 },
+                        set: { weeklyGoal = $0 ? max(weeklyGoal, 1) : 0 }
+                    ))
+                    if weeklyGoal > 0 {
+                        Stepper("\(weeklyGoal) exercises", value: $weeklyGoal, in: 1...50)
+                    }
+                }
 
                 Section {
                     Button("Delete Header", role: .destructive) {
@@ -647,6 +658,7 @@ private struct RenameHeaderSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         repository.renameHeader(header, to: name)
+                        repository.updateHeaderGoal(header, goal: weeklyGoal > 0 ? weeklyGoal : nil)
                         isPresented = false
                     }
                 }
@@ -654,6 +666,7 @@ private struct RenameHeaderSheet: View {
         }
         .onAppear {
             name = header.title
+            weeklyGoal = header.weeklyGoal ?? 0
             destinationHeaderID = otherHeaders.first?.id
         }
     }

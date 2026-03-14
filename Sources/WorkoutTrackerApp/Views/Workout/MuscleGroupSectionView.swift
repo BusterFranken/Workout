@@ -27,11 +27,38 @@ struct MuscleGroupSectionView: View {
                     Text(section.title)
                         .font(.title3.weight(.bold))
 
-                    Text("\(section.doneCount)")
-                        .font(.headline.monospacedDigit())
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.mutedSurface))
+                    if let goal = section.weeklyGoal {
+                        let progress = min(Double(section.doneCount) / Double(goal), 1.0)
+                        let isGoalHit = section.doneCount >= goal
+
+                        HStack(spacing: 4) {
+                            ZStack {
+                                Circle()
+                                    .fill(Theme.mutedSurface)
+                                Circle()
+                                    .trim(from: 0, to: progress)
+                                    .stroke(isGoalHit ? .green : Theme.accent,
+                                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                    .rotationEffect(.degrees(-90))
+                                Text("\(section.doneCount)")
+                                    .font(.headline.monospacedDigit())
+                            }
+                            .frame(width: 32, height: 32)
+
+                            if isGoalHit {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.body)
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.4), value: section.doneCount)
+                    } else {
+                        Text("\(section.doneCount)")
+                            .font(.headline.monospacedDigit())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Theme.mutedSurface))
+                    }
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {

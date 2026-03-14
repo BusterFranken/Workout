@@ -554,6 +554,7 @@ final class SectionHeaderEntity {
     var weekStartDate: Date?
     var templateID: UUID?
     var createdAt: Date
+    var weeklyGoal: Int?
 
     init(
         id: UUID = UUID(),
@@ -561,7 +562,8 @@ final class SectionHeaderEntity {
         orderIndex: Int,
         weekStartDate: Date? = nil,
         templateID: UUID? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        weeklyGoal: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -569,6 +571,7 @@ final class SectionHeaderEntity {
         self.weekStartDate = weekStartDate
         self.templateID = templateID
         self.createdAt = createdAt
+        self.weeklyGoal = weeklyGoal
     }
 }
 

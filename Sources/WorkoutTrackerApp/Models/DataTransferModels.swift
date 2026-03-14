@@ -449,6 +449,7 @@ struct SectionHeaderDTO: Codable {
     let weekStartDate: Date?
     let templateID: UUID?
     let createdAt: Date
+    let weeklyGoal: Int?
 
     init(from entity: SectionHeaderEntity) {
         self.id = entity.id
@@ -457,6 +458,7 @@ struct SectionHeaderDTO: Codable {
         self.weekStartDate = entity.weekStartDate
         self.templateID = entity.templateID
         self.createdAt = entity.createdAt
+        self.weeklyGoal = entity.weeklyGoal
     }
 
     func toEntity() -> SectionHeaderEntity {
@@ -466,7 +468,8 @@ struct SectionHeaderDTO: Codable {
             orderIndex: orderIndex,
             weekStartDate: weekStartDate,
             templateID: templateID,
-            createdAt: createdAt
+            createdAt: createdAt,
+            weeklyGoal: weeklyGoal
         )
     }
 }

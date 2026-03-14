@@ -44,6 +44,7 @@ struct WorkoutSectionModel: Identifiable {
     let sectionHeader: SectionHeaderEntity?
     let rows: [WeeklyExerciseEntity]
     let doneCount: Int
+    let weeklyGoal: Int?
 }
 
 struct GoalSnapshot: Identifiable {
@@ -603,6 +604,11 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func updateHeaderGoal(_ header: SectionHeaderEntity, goal: Int?) {
+        header.weeklyGoal = goal
+        saveAndRefresh()
+    }
+
     func exerciseCountForHeader(_ header: SectionHeaderEntity) -> Int {
         activeWeeklyExercises.filter { $0.headerID == header.id }.count
     }
@@ -806,7 +812,8 @@ final class WorkoutRepository: ObservableObject {
             let weeklyHeader = SectionHeaderEntity(
                 title: templateHeader.title,
                 orderIndex: existingHeaderCount + index,
-                weekStartDate: activeWeekStart
+                weekStartDate: activeWeekStart,
+                weeklyGoal: templateHeader.weeklyGoal
             )
             context.insert(weeklyHeader)
             headerMapping[templateHeader.id] = weeklyHeader.id
@@ -1175,7 +1182,8 @@ final class WorkoutRepository: ObservableObject {
             let newHeader = SectionHeaderEntity(
                 title: header.title,
                 orderIndex: header.orderIndex,
-                weekStartDate: nextWeek
+                weekStartDate: nextWeek,
+                weeklyGoal: header.weeklyGoal
             )
             context.insert(newHeader)
             headerMapping[header.id] = newHeader.id
@@ -2214,7 +2222,8 @@ final class WorkoutRepository: ObservableObject {
                 muscleGroup: nil,
                 sectionHeader: header,
                 rows: rows,
-                doneCount: doneCount
+                doneCount: doneCount,
+                weeklyGoal: header.weeklyGoal
             )
         }
     }
@@ -2234,7 +2243,8 @@ final class WorkoutRepository: ObservableObject {
                 muscleGroup: nil,
                 sectionHeader: nil,
                 rows: rows,
-                doneCount: doneCount
+                doneCount: doneCount,
+                weeklyGoal: nil
             )
         }
     }
@@ -2255,7 +2265,8 @@ final class WorkoutRepository: ObservableObject {
                 muscleGroup: nil,
                 sectionHeader: nil,
                 rows: rows,
-                doneCount: doneCount
+                doneCount: doneCount,
+                weeklyGoal: nil
             )
         }
     }

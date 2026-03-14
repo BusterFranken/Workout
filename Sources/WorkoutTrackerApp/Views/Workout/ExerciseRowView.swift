@@ -136,6 +136,7 @@ struct ExerciseRowView: View {
                 .foregroundStyle(exercise.name.isEmpty ? Theme.secondaryText : Theme.primaryText)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
                 .onTapGesture {
                     if focusedMetric != nil {
                         focusedMetric = nil

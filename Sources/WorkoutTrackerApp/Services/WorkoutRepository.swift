@@ -117,7 +117,7 @@ final class WorkoutRepository: ObservableObject {
     @Published var collapsedSectionIDs: Set<String> = []
 
     private let context: ModelContext
-    private let secondaryMuscleWeight: Double = 0.5
+    private let secondaryMuscleWeight: Double = 1.0 / 3.0
 
     private let customSlots = ["A", "B", "C", "D", "E"]
     private let defaultPRTrackers: [(label: String, token: String)] = [

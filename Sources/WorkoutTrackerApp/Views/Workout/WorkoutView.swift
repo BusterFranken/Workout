@@ -412,17 +412,22 @@ struct WorkoutView: View {
 
             if showDoneSection {
                 ForEach(repository.doneExercises) { row in
+                    let isPartial = row.completedAt == nil
                     Button {
-                        repository.toggleExerciseCompleted(row)
+                        if isPartial {
+                            repository.undoLastCompletion(row)
+                        } else {
+                            repository.toggleExerciseCompleted(row)
+                        }
                         Haptics.selection()
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: isPartial ? "circle.lefthalf.filled" : "checkmark.circle.fill")
                                 .foregroundStyle(Theme.accent)
 
                             Text(row.name)
-                                .strikethrough()
-                                .foregroundStyle(Theme.secondaryText)
+                                .if(!isPartial) { $0.strikethrough() }
+                                .foregroundStyle(isPartial ? Theme.primaryText : Theme.secondaryText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             if row.weeklyTarget > 1 {

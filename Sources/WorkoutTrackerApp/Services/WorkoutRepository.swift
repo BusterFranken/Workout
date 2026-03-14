@@ -202,10 +202,30 @@ final class WorkoutRepository: ObservableObject {
         activeWeeklyExercises.filter { $0.completedAt == nil }
     }
 
+    var partiallyCompletedExercises: [WeeklyExerciseEntity] {
+        activeWeeklyExercises.filter {
+            $0.completedAt == nil
+            && $0.weeklyTarget > 1
+            && completionCount(for: $0) > 0
+        }
+    }
+
     var doneExercises: [WeeklyExerciseEntity] {
-        activeWeeklyExercises
-            .filter { $0.completedAt != nil }
-            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+        let fullyDone = activeWeeklyExercises.filter { $0.completedAt != nil }
+        let partial = partiallyCompletedExercises
+        return (fullyDone + partial)
+            .sorted {
+                let d0 = $0.completedAt ?? latestCompletionDate(for: $0)
+                let d1 = $1.completedAt ?? latestCompletionDate(for: $1)
+                return d0 > d1
+            }
+    }
+
+    private func latestCompletionDate(for exercise: WeeklyExerciseEntity) -> Date {
+        completionLogs
+            .filter { $0.weeklyExerciseID == exercise.id && $0.weekStartDate == exercise.weekStartDate }
+            .map(\.completedAt)
+            .max() ?? .distantPast
     }
 
     var hasAnyActiveExercise: Bool {
@@ -1122,6 +1142,16 @@ final class WorkoutRepository: ObservableObject {
             }
         }
 
+        saveAndRefresh()
+    }
+
+    func undoLastCompletion(_ exercise: WeeklyExerciseEntity) {
+        let countBeforeDelete = completionCount(for: exercise)
+        guard countBeforeDelete > 0 else { return }
+        removeMostRecentCompletionLog(for: exercise)
+        if exercise.completedAt != nil && countBeforeDelete - 1 < exercise.weeklyTarget {
+            exercise.completedAt = nil
+        }
         saveAndRefresh()
     }
 
@@ -2317,7 +2347,7 @@ final class WorkoutRepository: ObservableObject {
     private func muscleGroupSections() -> [WorkoutSectionModel] {
         let headers = activeWeeklyHeaders
         let pendingByHeader = Dictionary(grouping: pendingExercises, by: { $0.headerID })
-        let doneByHeader = Dictionary(grouping: doneExercises, by: { $0.headerID })
+        let doneByHeader = Dictionary(grouping: doneExercises.filter { $0.completedAt != nil }, by: { $0.headerID })
 
         return headers.map { header in
             let rows = (pendingByHeader[header.id] ?? []).sorted { $0.orderIndex < $1.orderIndex }
@@ -2338,7 +2368,7 @@ final class WorkoutRepository: ObservableObject {
 
     private func weekdaySections() -> [WorkoutSectionModel] {
         let pendingByDay = Dictionary(grouping: pendingExercises, by: { $0.weekdayIndex ?? 1 })
-        let doneByDay = Dictionary(grouping: doneExercises, by: { $0.weekdayIndex ?? 1 })
+        let doneByDay = Dictionary(grouping: doneExercises.filter { $0.completedAt != nil }, by: { $0.weekdayIndex ?? 1 })
 
         return weekdayHeaders.map { day, label in
             let rows = (pendingByDay[day] ?? []).sorted { $0.orderIndex < $1.orderIndex }
@@ -2359,7 +2389,7 @@ final class WorkoutRepository: ObservableObject {
 
     private func customSections() -> [WorkoutSectionModel] {
         let pendingBySlot = Dictionary(grouping: pendingExercises, by: { normalizeGroupName($0.customSlot ?? "A") })
-        let doneBySlot = Dictionary(grouping: doneExercises, by: { normalizeGroupName($0.customSlot ?? "A") })
+        let doneBySlot = Dictionary(grouping: doneExercises.filter { $0.completedAt != nil }, by: { normalizeGroupName($0.customSlot ?? "A") })
 
         return customSlots.map { slot in
             let key = normalizeGroupName(slot)

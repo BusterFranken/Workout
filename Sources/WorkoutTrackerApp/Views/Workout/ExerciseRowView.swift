@@ -150,30 +150,11 @@ struct ExerciseRowView: View {
                     }
                 }
 
-            MetricBubble(
-                text: setsBinding,
-                suffix: "s",
-                focusedMetric: $focusedMetric,
-                focusField: .sets,
-                isEditable: !isReordering
-            )
-            MetricBubble(
-                text: repsOrSecondsBinding,
-                suffix: "r",
-                minCharacterCount: 2,
-                focusedMetric: $focusedMetric,
-                focusField: .reps,
-                isEditable: !isReordering
-            )
-            MetricBubble(
-                text: weightBinding,
-                placeholder: "BW",
-                suffix: "kg",
-                minCharacterCount: 3,
-                focusedMetric: $focusedMetric,
-                focusField: .weight,
-                isEditable: !isReordering
-            )
+            if exercise.weeklyTarget > 1 {
+                progressDots
+            }
+
+            categoryMetrics
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -292,6 +273,179 @@ struct ExerciseRowView: View {
         return .undetermined
     }
 
+    @ViewBuilder
+    private var progressDots: some View {
+        let done = repository.completionCount(for: exercise)
+        let target = exercise.weeklyTarget
+        HStack(spacing: 2) {
+            ForEach(0..<target, id: \.self) { i in
+                Circle()
+                    .fill(i < done ? Theme.accent : Theme.secondaryText.opacity(0.3))
+                    .frame(width: 6, height: 6)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var categoryMetrics: some View {
+        switch exercise.category {
+        case .exercise:
+            MetricBubble(
+                text: setsBinding,
+                suffix: "s",
+                focusedMetric: $focusedMetric,
+                focusField: .sets,
+                isEditable: !isReordering
+            )
+            MetricBubble(
+                text: repsOrSecondsBinding,
+                suffix: "r",
+                minCharacterCount: 2,
+                focusedMetric: $focusedMetric,
+                focusField: .reps,
+                isEditable: !isReordering
+            )
+            MetricBubble(
+                text: weightBinding,
+                placeholder: "BW",
+                suffix: "kg",
+                minCharacterCount: 3,
+                focusedMetric: $focusedMetric,
+                focusField: .weight,
+                isEditable: !isReordering
+            )
+        case .stretch:
+            MetricBubble(
+                text: setsBinding,
+                suffix: "s",
+                focusedMetric: $focusedMetric,
+                focusField: .sets,
+                isEditable: !isReordering
+            )
+            MetricBubble(
+                text: secondsBinding,
+                suffix: "sec",
+                minCharacterCount: 2,
+                focusedMetric: $focusedMetric,
+                focusField: .reps,
+                isEditable: !isReordering
+            )
+        case .cardio:
+            MetricBubble(
+                text: durationBinding,
+                placeholder: "0",
+                suffix: "m",
+                focusedMetric: $focusedMetric,
+                focusField: .duration,
+                isEditable: !isReordering
+            )
+            if !exercise.intensityLabel.isEmpty {
+                MetricBubble(
+                    text: intensityBinding,
+                    suffix: "i",
+                    focusedMetric: $focusedMetric,
+                    focusField: .intensity,
+                    isEditable: !isReordering
+                )
+            }
+            if exercise.distanceKm != nil {
+                MetricBubble(
+                    text: distanceBinding,
+                    suffix: "km",
+                    minCharacterCount: 3,
+                    focusedMetric: $focusedMetric,
+                    focusField: .distance,
+                    isEditable: !isReordering
+                )
+            }
+            if exercise.inclinePercent != nil {
+                MetricBubble(
+                    text: inclineBinding,
+                    suffix: "%",
+                    focusedMetric: $focusedMetric,
+                    focusField: .incline,
+                    isEditable: !isReordering
+                )
+            }
+            if exercise.heartRateTarget != nil {
+                MetricBubble(
+                    text: heartRateBinding,
+                    suffix: "bpm",
+                    minCharacterCount: 3,
+                    focusedMetric: $focusedMetric,
+                    focusField: .heartRate,
+                    isEditable: !isReordering
+                )
+            }
+        }
+    }
+
+    private var durationBinding: Binding<String> {
+        Binding(
+            get: { exercise.durationMinutes.map(String.init) ?? "" },
+            set: {
+                exercise.durationMinutes = Int($0.filter { $0.isNumber })
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var intensityBinding: Binding<String> {
+        Binding(
+            get: { exercise.intensityLabel.isEmpty ? "" : exercise.intensityLabel },
+            set: {
+                exercise.intensityLabel = String($0.filter { $0.isNumber })
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var distanceBinding: Binding<String> {
+        Binding(
+            get: {
+                guard let km = exercise.distanceKm else { return "" }
+                return km.rounded() == km ? String(Int(km)) : String(format: "%.1f", km)
+            },
+            set: {
+                exercise.distanceKm = Double($0.replacingOccurrences(of: ",", with: "."))
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var inclineBinding: Binding<String> {
+        Binding(
+            get: {
+                guard let pct = exercise.inclinePercent else { return "" }
+                return pct.rounded() == pct ? String(Int(pct)) : String(format: "%.1f", pct)
+            },
+            set: {
+                exercise.inclinePercent = Double($0.replacingOccurrences(of: ",", with: "."))
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var heartRateBinding: Binding<String> {
+        Binding(
+            get: { exercise.heartRateTarget.map(String.init) ?? "" },
+            set: {
+                exercise.heartRateTarget = Int($0.filter { $0.isNumber })
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var secondsBinding: Binding<String> {
+        Binding(
+            get: { exercise.seconds.map(String.init) ?? "" },
+            set: {
+                exercise.seconds = Int($0.filter { $0.isNumber })
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
     private var setsBinding: Binding<String> {
         Binding(
             get: { exercise.sets.map(String.init) ?? "" },
@@ -349,9 +503,8 @@ private enum RowDragIntent {
 }
 
 private enum RowMetricField: Hashable {
-    case sets
-    case reps
-    case weight
+    case sets, reps, weight
+    case duration, intensity, distance, incline, heartRate
 }
 
 private struct RowDropDelegate: DropDelegate {

@@ -5,6 +5,7 @@ struct ExerciseDetailSheet: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
     let exercise: WeeklyExerciseEntity
+    @State private var showingEditor = false
     private let chartScrollThreshold = 10
     private let chartPointWidth: CGFloat = 36
 
@@ -29,7 +30,7 @@ struct ExerciseDetailSheet: View {
     private var loadHistory: [ProgressPoint] {
         logs.compactMap { log in
             guard let value = log.loadSnapshot, value > 0 else { return nil }
-            return ProgressPoint(date: log.completedAt, value: value)
+            return ProgressPoint(date: log.completedAt, value: displayedWeight(from: value))
         }
     }
 
@@ -111,7 +112,7 @@ struct ExerciseDetailSheet: View {
                             }
                         }
 
-                        chartCard(title: "Load Progression (kg x reps)") {
+                        chartCard(title: "Load Progression (\(repository.unitSystem.title) x reps)") {
                             let yValues = Array(Set(loadHistory.map(\.value))).sorted()
                             let visibleValues = Array(Set(loadHistory.suffix(10).map(\.value))).sorted()
                             let domain = paddedDomain(for: yValues)
@@ -167,11 +168,27 @@ struct ExerciseDetailSheet: View {
                             }
                         }
                     }
+
+                    Button {
+                        showingEditor = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "pencil")
+                            Text("Edit Exercise")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                    }
+                    .appCard()
                 }
                 .padding()
             }
             .background(Theme.background)
             .navigationTitle("Exercise")
+            .sheet(isPresented: $showingEditor) {
+                ExerciseEditorSheet(isPresented: $showingEditor, exercise: exercise)
+                    .environmentObject(repository)
+            }
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif

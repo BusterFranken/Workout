@@ -58,21 +58,37 @@ struct ExerciseEditorSheet: View {
                 }
 
                 Section("Targets") {
-                    TextField("Sets", text: $sets)
-                        .numberPadKeyboardIfAvailable()
+                    HStack {
+                        Text("Sets")
+                        TextField("0", text: $sets)
+                            .numberPadKeyboardIfAvailable()
+                            .multilineTextAlignment(.trailing)
+                    }
 
                     Toggle("Use Seconds Instead Of Reps", isOn: $useSeconds)
 
                     if useSeconds {
-                        TextField("Seconds", text: $seconds)
-                            .numberPadKeyboardIfAvailable()
+                        HStack {
+                            Text("Seconds")
+                            TextField("0", text: $seconds)
+                                .numberPadKeyboardIfAvailable()
+                                .multilineTextAlignment(.trailing)
+                        }
                     } else {
-                        TextField("Reps", text: $reps)
-                            .numberPadKeyboardIfAvailable()
+                        HStack {
+                            Text("Reps")
+                            TextField("0", text: $reps)
+                                .numberPadKeyboardIfAvailable()
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
 
-                    TextField("Weight (\(repository.unitSystem.title.uppercased()) or BW)", text: $weightInput)
-                        .decimalPadKeyboardIfAvailable()
+                    HStack {
+                        Text("Weight (\(repository.unitSystem.title.uppercased()))")
+                        TextField("BW", text: $weightInput)
+                            .decimalPadKeyboardIfAvailable()
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section("Scheduling") {
@@ -139,8 +155,6 @@ struct ExerciseEditorSheet: View {
                 let lb = kg * 2.2046226218
                 weightInput = lb.rounded() == lb ? String(Int(lb)) : String(format: "%.1f", lb)
             }
-        } else {
-            weightInput = "BW"
         }
 
         selectedSecondaryGroups = exercise.secondaryMuscleGroupsRaw

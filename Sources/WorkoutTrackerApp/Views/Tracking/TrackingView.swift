@@ -130,6 +130,8 @@ struct TrackingView: View {
             bodyMetricsCard
         case .classicPRs:
             prCard
+        case .muscleBalance:
+            muscleBalanceCard
         }
     }
 
@@ -497,6 +499,104 @@ struct TrackingView: View {
         .background(
             Color.clear
         )
+        .appCard()
+    }
+
+    private var muscleBalanceCard: some View {
+        let summaries = repository.neglectedMuscleAverages()
+        let withGoal = summaries.filter { $0.goalTarget != nil }
+        let withoutGoal = summaries.filter { $0.goalTarget == nil }
+        let hasAnyGoal = !withGoal.isEmpty
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Muscle Balance")
+                .font(.headline)
+
+            if summaries.isEmpty {
+                Text("No training history yet")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            } else if !hasAnyGoal {
+                // No goals set — show raw averages as horizontal bars
+                Chart(summaries) { item in
+                    BarMark(
+                        x: .value("Avg Sets", item.avgSetsPerWeek),
+                        y: .value("Muscle", item.muscleGroup),
+                        height: .fixed(10)
+                    )
+                    .foregroundStyle(Theme.accent)
+                    .cornerRadius(3)
+                    .annotation(position: .trailing, spacing: 4) {
+                        Text(String(format: "%.1f sets", item.avgSetsPerWeek))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+                }
+                .chartXAxisLabel("Avg sets / week (4-week)")
+                .frame(height: CGFloat(max(summaries.count, 1)) * 50)
+            } else {
+                Text("vs. Goal")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Theme.primaryText)
+
+                Chart(withGoal) { item in
+                    BarMark(
+                        x: .value("% of Goal", (item.goalPercent ?? 0) * 100),
+                        y: .value("Muscle", item.muscleGroup),
+                        height: .fixed(10)
+                    )
+                    .foregroundStyle(Theme.accent)
+                    .cornerRadius(3)
+                    .annotation(position: .trailing, spacing: 4) {
+                        Text(String(format: "%.1f / %d sets (%d%%)",
+                                    item.avgSetsPerWeek,
+                                    item.goalTarget ?? 0,
+                                    Int(round((item.goalPercent ?? 0) * 100))))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondaryText)
+                    }
+
+                    RuleMark(x: .value("Goal", 100))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+                .chartXAxisLabel("% of weekly goal")
+                .frame(height: CGFloat(max(withGoal.count, 1)) * 50)
+
+                if !withoutGoal.isEmpty {
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    Text("No Goal")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Theme.primaryText)
+
+                    Chart(withoutGoal) { item in
+                        BarMark(
+                            x: .value("Avg Sets", item.avgSetsPerWeek),
+                            y: .value("Muscle", item.muscleGroup),
+                            height: .fixed(10)
+                        )
+                        .foregroundStyle(Theme.accent)
+                        .cornerRadius(3)
+                        .annotation(position: .trailing, spacing: 4) {
+                            Text(String(format: "%.1f sets/wk", item.avgSetsPerWeek))
+                                .font(.caption2)
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                    .chartXAxisLabel("Avg sets / week (4-week)")
+                    .frame(height: CGFloat(max(withoutGoal.count, 1)) * 50)
+                }
+            }
+
+            Text("4-week average · lowest 2 highlighted")
+                .font(.caption2)
+                .foregroundStyle(Theme.secondaryText)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.clear)
         .appCard()
     }
 

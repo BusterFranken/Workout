@@ -14,6 +14,7 @@ enum TrackingWidgetID: String, CaseIterable, Identifiable {
     case currentWeekByMuscle
     case bodyMetrics
     case classicPRs
+    case muscleBalance
 
     var id: String { rawValue }
 
@@ -31,6 +32,8 @@ enum TrackingWidgetID: String, CaseIterable, Identifiable {
             return "Body Metrics"
         case .classicPRs:
             return "Classic PR Tracking"
+        case .muscleBalance:
+            return "Muscle Balance"
         }
     }
 }
@@ -85,6 +88,15 @@ struct MuscleTrendPoint: Identifiable {
     let weekStart: Date
     let muscleGroup: String
     let sets: Int
+}
+
+struct MuscleAvgSummary: Identifiable {
+    let id = UUID()
+    let muscleGroup: String
+    let avgSetsPerWeek: Double
+    let goalTarget: Int?
+    let goalPercent: Double?
+    let isNeglected: Bool
 }
 
 struct ExercisePRSnapshot: Identifiable {
@@ -401,6 +413,102 @@ final class WorkoutRepository: ObservableObject {
         }
 
         return points
+    }
+
+    func neglectedMuscleAverages() -> [MuscleAvgSummary] {
+        let calendar = Calendar.workout
+        let activeGroups = uniqueActiveMuscleGroupsByNormalizedName()
+        guard !activeGroups.isEmpty else { return [] }
+
+        // Collect sets for each muscle group over the last 4 weeks
+        var groupTotals: [String: Double] = [:]
+        for group in activeGroups {
+            groupTotals[normalizeGroupName(group.name)] = 0
+        }
+
+        for offset in 0..<4 {
+            guard let week = calendar.date(byAdding: .weekOfYear, value: -offset, to: activeWeekStart) else { continue }
+            let weekLogs = completionLogs.filter { $0.weekStartDate == week && $0.categoryRaw == "exercise" }
+
+            for log in weekLogs {
+                guard let sets = log.setsSnapshot else { continue }
+                let setsDouble = Double(sets)
+                let primaryKey = normalizeGroupName(log.muscleGroupName)
+                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
+
+                if groupTotals[primaryKey] != nil {
+                    groupTotals[primaryKey]! += setsDouble
+                }
+                for key in secondaryKeys where groupTotals[key] != nil {
+                    groupTotals[key]! += setsDouble * secondaryMuscleWeight
+                }
+            }
+        }
+
+        // Build summaries with goal lookup
+        let activeGoals = goalCards.filter { !$0.isArchived && $0.metricType == .muscleGroupSets }
+
+        let headerGoals: [String: Int] = Dictionary(
+            activeWeeklyHeaders.compactMap { header -> (String, Int)? in
+                guard let goal = header.weeklyGoal, goal > 0 else { return nil }
+                return (normalizeGroupName(header.title), goal)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        var withGoal: [(String, Double, Int, Double)] = []    // (name, avg, target, percent)
+        var withoutGoal: [(String, Double)] = []              // (name, avg)
+
+        for group in activeGroups {
+            let key = normalizeGroupName(group.name)
+            let avg = (groupTotals[key] ?? 0) / 4.0
+
+            if let goal = activeGoals.first(where: { $0.muscleGroupID == group.id }), goal.targetValue > 0 {
+                let pct = avg / Double(goal.targetValue)
+                withGoal.append((group.name, avg, goal.targetValue, pct))
+            } else if let headerTarget = headerGoals[normalizeGroupName(group.name)] {
+                let pct = avg / Double(headerTarget)
+                withGoal.append((group.name, avg, headerTarget, pct))
+            } else {
+                withoutGoal.append((group.name, avg))
+            }
+        }
+
+        // Sort: groups with goals ascending by goalPercent, then without goals ascending by avg
+        withGoal.sort { $0.3 < $1.3 }
+        withoutGoal.sort { $0.1 < $1.1 }
+
+        let totalCount = withGoal.count + withoutGoal.count
+        let neglectedCount = min(2, totalCount)
+        var neglectedRemaining = neglectedCount
+
+        var results: [MuscleAvgSummary] = []
+
+        for item in withGoal {
+            let neglected = neglectedRemaining > 0
+            if neglected { neglectedRemaining -= 1 }
+            results.append(MuscleAvgSummary(
+                muscleGroup: item.0,
+                avgSetsPerWeek: item.1,
+                goalTarget: item.2,
+                goalPercent: item.3,
+                isNeglected: neglected
+            ))
+        }
+
+        for item in withoutGoal {
+            let neglected = neglectedRemaining > 0
+            if neglected { neglectedRemaining -= 1 }
+            results.append(MuscleAvgSummary(
+                muscleGroup: item.0,
+                avgSetsPerWeek: item.1,
+                goalTarget: nil,
+                goalPercent: nil,
+                isNeglected: neglected
+            ))
+        }
+
+        return results
     }
 
     func progressionLogs(for exercise: WeeklyExerciseEntity) -> [CompletionLogEntity] {
@@ -2540,7 +2648,8 @@ final class WorkoutRepository: ObservableObject {
             TrackingWidgetID.muscleTrend.rawValue,
             TrackingWidgetID.currentWeekByMuscle.rawValue,
             TrackingWidgetID.bodyMetrics.rawValue,
-            TrackingWidgetID.classicPRs.rawValue
+            TrackingWidgetID.classicPRs.rawValue,
+            TrackingWidgetID.muscleBalance.rawValue
         ].joined(separator: ",")
     }
 }

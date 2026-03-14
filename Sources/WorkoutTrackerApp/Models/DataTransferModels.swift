@@ -45,6 +45,7 @@ struct ExerciseDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let categoryRaw: String?
+    let primarySubMuscleName: String?
 
     init(from entity: ExerciseEntity) {
         self.id = entity.id
@@ -58,6 +59,7 @@ struct ExerciseDTO: Codable {
         self.createdAt = entity.createdAt
         self.updatedAt = entity.updatedAt
         self.categoryRaw = entity.categoryRaw
+        self.primarySubMuscleName = entity.primarySubMuscleName
     }
 
     func toEntity() -> ExerciseEntity {
@@ -72,7 +74,8 @@ struct ExerciseDTO: Codable {
             isArchived: isArchived,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            categoryRaw: categoryRaw ?? "exercise"
+            categoryRaw: categoryRaw ?? "exercise",
+            primarySubMuscleName: primarySubMuscleName
         )
     }
 }
@@ -127,6 +130,7 @@ struct WorkoutTemplateExerciseDTO: Codable {
     let inclinePercent: Double?
     let distanceKm: Double?
     let heartRateTarget: Int?
+    let subMuscleName: String?
 
     init(from entity: WorkoutTemplateExerciseEntity) {
         self.id = entity.id
@@ -152,6 +156,7 @@ struct WorkoutTemplateExerciseDTO: Codable {
         self.inclinePercent = entity.inclinePercent
         self.distanceKm = entity.distanceKm
         self.heartRateTarget = entity.heartRateTarget
+        self.subMuscleName = entity.subMuscleName
     }
 
     func toEntity() -> WorkoutTemplateExerciseEntity {
@@ -178,7 +183,8 @@ struct WorkoutTemplateExerciseDTO: Codable {
             intensityLabel: intensityLabel ?? "",
             inclinePercent: inclinePercent,
             distanceKm: distanceKm,
-            heartRateTarget: heartRateTarget
+            heartRateTarget: heartRateTarget,
+            subMuscleName: subMuscleName
         )
     }
 }
@@ -209,6 +215,7 @@ struct WeeklyExerciseDTO: Codable {
     let inclinePercent: Double?
     let distanceKm: Double?
     let heartRateTarget: Int?
+    let subMuscleName: String?
 
     init(from entity: WeeklyExerciseEntity) {
         self.id = entity.id
@@ -236,6 +243,7 @@ struct WeeklyExerciseDTO: Codable {
         self.inclinePercent = entity.inclinePercent
         self.distanceKm = entity.distanceKm
         self.heartRateTarget = entity.heartRateTarget
+        self.subMuscleName = entity.subMuscleName
     }
 
     func toEntity() -> WeeklyExerciseEntity {
@@ -264,7 +272,8 @@ struct WeeklyExerciseDTO: Codable {
             intensityLabel: intensityLabel ?? "",
             inclinePercent: inclinePercent,
             distanceKm: distanceKm,
-            heartRateTarget: heartRateTarget
+            heartRateTarget: heartRateTarget,
+            subMuscleName: subMuscleName
         )
     }
 }
@@ -291,6 +300,7 @@ struct CompletionLogDTO: Codable {
     let inclinePercentSnapshot: Double?
     let distanceKmSnapshot: Double?
     let heartRateTargetSnapshot: Int?
+    let subMuscleNameSnapshot: String?
 
     init(from entity: CompletionLogEntity) {
         self.id = entity.id
@@ -314,6 +324,7 @@ struct CompletionLogDTO: Codable {
         self.inclinePercentSnapshot = entity.inclinePercentSnapshot
         self.distanceKmSnapshot = entity.distanceKmSnapshot
         self.heartRateTargetSnapshot = entity.heartRateTargetSnapshot
+        self.subMuscleNameSnapshot = entity.subMuscleNameSnapshot
     }
 
     func toEntity() -> CompletionLogEntity {
@@ -338,7 +349,8 @@ struct CompletionLogDTO: Codable {
             intensityLabelSnapshot: intensityLabelSnapshot ?? "",
             inclinePercentSnapshot: inclinePercentSnapshot,
             distanceKmSnapshot: distanceKmSnapshot,
-            heartRateTargetSnapshot: heartRateTargetSnapshot
+            heartRateTargetSnapshot: heartRateTargetSnapshot,
+            subMuscleNameSnapshot: subMuscleNameSnapshot
         )
     }
 }
@@ -352,6 +364,7 @@ struct GoalCardDTO: Codable {
     let muscleGroupID: UUID?
     let isSystem: Bool
     let isArchived: Bool
+    let subMuscleName: String?
 
     init(from entity: GoalCardEntity) {
         self.id = entity.id
@@ -362,6 +375,7 @@ struct GoalCardDTO: Codable {
         self.muscleGroupID = entity.muscleGroupID
         self.isSystem = entity.isSystem
         self.isArchived = entity.isArchived
+        self.subMuscleName = entity.subMuscleName
     }
 
     func toEntity() -> GoalCardEntity {
@@ -373,7 +387,8 @@ struct GoalCardDTO: Codable {
             orderIndex: orderIndex,
             muscleGroupID: muscleGroupID,
             isSystem: isSystem,
-            isArchived: isArchived
+            isArchived: isArchived,
+            subMuscleName: subMuscleName
         )
     }
 }

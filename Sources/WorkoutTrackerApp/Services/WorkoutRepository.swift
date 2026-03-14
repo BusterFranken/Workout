@@ -307,7 +307,7 @@ final class WorkoutRepository: ObservableObject {
         for log in thisWeek {
             let sets = Double(log.setsSnapshot ?? 0)
             let primaryKey = normalizeGroupName(log.muscleGroupName)
-            let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+            let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
 
             // Primary: full weight
             if !primaryKey.isEmpty {
@@ -336,7 +336,7 @@ final class WorkoutRepository: ObservableObject {
                         return true
                     }
                     return parseCSV(exercise.secondaryMuscleGroupsRaw)
-                        .map(normalizeGroupName)
+                        .map(resolveSecondaryGroupKey)
                         .contains(key)
                 }
                 .sorted { $0.orderIndex < $1.orderIndex }
@@ -379,7 +379,7 @@ final class WorkoutRepository: ObservableObject {
                         guard let sets = log.setsSnapshot else { return partial }
                         let setsDouble = Double(sets)
                         let primaryKey = normalizeGroupName(log.muscleGroupName)
-                        let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+                        let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
 
                         if primaryKey == groupKey {
                             return partial + setsDouble
@@ -743,7 +743,8 @@ final class WorkoutRepository: ObservableObject {
             seconds: nil,
             weightKg: nil,
             headerID: header.id,
-            categoryRaw: exercise.categoryRaw
+            categoryRaw: exercise.categoryRaw,
+            subMuscleName: exercise.primarySubMuscleName
         )
 
         context.insert(row)
@@ -879,7 +880,8 @@ final class WorkoutRepository: ObservableObject {
                 intensityLabel: row.intensityLabel,
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
-                heartRateTarget: row.heartRateTarget
+                heartRateTarget: row.heartRateTarget,
+                subMuscleName: row.subMuscleName
             )
             context.insert(weekly)
         }
@@ -956,7 +958,8 @@ final class WorkoutRepository: ObservableObject {
                     intensityLabelSnapshot: exercise.intensityLabel,
                     inclinePercentSnapshot: exercise.inclinePercent,
                     distanceKmSnapshot: exercise.distanceKm,
-                    heartRateTargetSnapshot: exercise.heartRateTarget
+                    heartRateTargetSnapshot: exercise.heartRateTarget,
+                    subMuscleNameSnapshot: exercise.subMuscleName
                 )
             )
 
@@ -1051,7 +1054,8 @@ final class WorkoutRepository: ObservableObject {
                         weightKgSnapshot: weightKg,
                         loadSnapshot: loadSnapshot,
                         isSimulated: true,
-                        categoryRaw: exercise.categoryRaw
+                        categoryRaw: exercise.categoryRaw,
+                        subMuscleNameSnapshot: exercise.subMuscleName
                     )
                 )
             }
@@ -1122,7 +1126,8 @@ final class WorkoutRepository: ObservableObject {
                 intensityLabel: row.intensityLabel,
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
-                heartRateTarget: row.heartRateTarget
+                heartRateTarget: row.heartRateTarget,
+                subMuscleName: row.subMuscleName
             )
             context.insert(snap)
         }
@@ -1205,7 +1210,8 @@ final class WorkoutRepository: ObservableObject {
                 intensityLabel: row.intensityLabel,
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
-                heartRateTarget: row.heartRateTarget
+                heartRateTarget: row.heartRateTarget,
+                subMuscleName: row.subMuscleName
             )
             context.insert(clone)
         }
@@ -1223,7 +1229,7 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
-    func addCustomGoal(metric: GoalMetricType, target: Int, title: String, muscleGroupID: UUID?) {
+    func addCustomGoal(metric: GoalMetricType, target: Int, title: String, muscleGroupID: UUID?, subMuscleName: String? = nil) {
         let activeCount = goalCards.filter { !$0.isArchived }.count
         guard activeCount < 3 else { return }
 
@@ -1235,7 +1241,8 @@ final class WorkoutRepository: ObservableObject {
             orderIndex: nextIndex,
             muscleGroupID: muscleGroupID,
             isSystem: false,
-            isArchived: false
+            isArchived: false,
+            subMuscleName: subMuscleName
         )
         context.insert(card)
         saveAndRefresh()
@@ -1292,6 +1299,9 @@ final class WorkoutRepository: ObservableObject {
 
             refreshAll()
 
+            migrateForearmGroupName()
+            deduplicateMuscleGroups()
+
             guard let settings = self.settings,
                   settings.seedVersion < SeedCatalog.seedVersion
             else {
@@ -1309,6 +1319,7 @@ final class WorkoutRepository: ObservableObject {
             seedGainz3TemplateIfNeeded()
             migratePhantomMuscleGroups()
             migrateStretchCardioCategories()
+            deduplicateMuscleGroups()
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
             try context.save()
@@ -1387,7 +1398,12 @@ final class WorkoutRepository: ObservableObject {
             let key = normalizeGroupName(seed.muscleGroup)
             let group = groupLookup[key] ?? ensureMuscleGroup(named: seed.muscleGroup)
             for secondary in seed.secondaryMuscleGroups where !secondary.isEmpty {
-                _ = ensureMuscleGroup(named: secondary)
+                let secKey = normalizeGroupName(secondary)
+                if groupLookup[secKey] == nil {
+                    let group = MuscleGroupEntity(name: secondary, orderIndex: groupLookup.count)
+                    context.insert(group)
+                    groupLookup[secKey] = group
+                }
             }
 
             let exercise = ExerciseEntity(
@@ -1542,6 +1558,103 @@ final class WorkoutRepository: ObservableObject {
             for group in muscleGroups where normalizeGroupName(group.name) == oldNorm {
                 context.delete(group)
             }
+        }
+
+        saveAndRefresh()
+    }
+
+    private func migrateForearmGroupName() {
+        let oldName = "Grip / forearms"
+        let newName = "Forearms"
+        let oldNorm = normalizeGroupName(oldName)
+
+        guard muscleGroups.contains(where: { normalizeGroupName($0.name) == oldNorm }) else { return }
+
+        for group in muscleGroups where normalizeGroupName(group.name) == oldNorm {
+            group.name = newName
+        }
+        for exercise in exerciseCatalog where normalizeGroupName(exercise.primaryMuscleGroupName) == oldNorm {
+            exercise.primaryMuscleGroupName = newName
+        }
+        for weekly in weeklyExercises where normalizeGroupName(weekly.muscleGroupName) == oldNorm {
+            weekly.muscleGroupName = newName
+        }
+        for item in templateExercises where normalizeGroupName(item.muscleGroupName) == oldNorm {
+            item.muscleGroupName = newName
+        }
+        for log in completionLogs where normalizeGroupName(log.muscleGroupName) == oldNorm {
+            log.muscleGroupName = newName
+        }
+
+        // Also fix secondary muscle group references
+        let replaceInCSV = { (raw: String) -> String in
+            raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { self.normalizeGroupName($0) == oldNorm ? newName : $0 }
+                .joined(separator: ",")
+        }
+        for exercise in exerciseCatalog where exercise.secondaryMuscleGroupsRaw.lowercased().contains(oldNorm) {
+            exercise.secondaryMuscleGroupsRaw = replaceInCSV(exercise.secondaryMuscleGroupsRaw)
+        }
+        for weekly in weeklyExercises where weekly.secondaryMuscleGroupsRaw.lowercased().contains(oldNorm) {
+            weekly.secondaryMuscleGroupsRaw = replaceInCSV(weekly.secondaryMuscleGroupsRaw)
+        }
+        for item in templateExercises where item.secondaryMuscleGroupsRaw.lowercased().contains(oldNorm) {
+            item.secondaryMuscleGroupsRaw = replaceInCSV(item.secondaryMuscleGroupsRaw)
+        }
+        for log in completionLogs where log.secondaryMuscleGroupsRaw.lowercased().contains(oldNorm) {
+            log.secondaryMuscleGroupsRaw = replaceInCSV(log.secondaryMuscleGroupsRaw)
+        }
+
+        // Rename section headers
+        for header in sectionHeaders where normalizeGroupName(header.title) == oldNorm {
+            header.title = newName
+        }
+
+        saveAndRefresh()
+    }
+
+    private func deduplicateMuscleGroups() {
+        var seen: [String: MuscleGroupEntity] = [:]
+        var duplicates: [(duplicate: MuscleGroupEntity, keepID: UUID)] = []
+
+        for group in muscleGroups {
+            let normalized = normalizeGroupName(group.name)
+            if let existing = seen[normalized] {
+                let keep = existing.orderIndex <= group.orderIndex ? existing : group
+                let drop = keep === existing ? group : existing
+                seen[normalized] = keep
+                if keep !== existing {
+                    // Previous "existing" is now the duplicate
+                    duplicates.removeAll { $0.duplicate === existing }
+                    duplicates.append((duplicate: existing, keepID: keep.id))
+                }
+                duplicates.append((duplicate: drop, keepID: keep.id))
+            } else {
+                seen[normalized] = group
+            }
+        }
+
+        guard !duplicates.isEmpty else { return }
+
+        for (dup, keepID) in duplicates {
+            let dupID = dup.id
+            for exercise in exerciseCatalog where exercise.primaryMuscleGroupID == dupID {
+                exercise.primaryMuscleGroupID = keepID
+            }
+            for weekly in weeklyExercises where weekly.muscleGroupID == dupID {
+                weekly.muscleGroupID = keepID
+            }
+            for item in templateExercises where item.muscleGroupID == dupID {
+                item.muscleGroupID = keepID
+            }
+            for log in completionLogs where log.muscleGroupID == dupID {
+                log.muscleGroupID = keepID
+            }
+            for goal in goalCards where goal.muscleGroupID == dupID {
+                goal.muscleGroupID = keepID
+            }
+            context.delete(dup)
         }
 
         saveAndRefresh()
@@ -1914,6 +2027,7 @@ final class WorkoutRepository: ObservableObject {
             existing.secondaryMuscleGroupsRaw = weekly.secondaryMuscleGroupsRaw
             existing.notes = weekly.notes
             existing.categoryRaw = weekly.categoryRaw
+            existing.primarySubMuscleName = weekly.subMuscleName
             existing.updatedAt = .now
             return existing.id
         }
@@ -1924,7 +2038,8 @@ final class WorkoutRepository: ObservableObject {
             primaryMuscleGroupName: weekly.muscleGroupName,
             secondaryMuscleGroupsRaw: weekly.secondaryMuscleGroupsRaw,
             notes: weekly.notes,
-            categoryRaw: weekly.categoryRaw
+            categoryRaw: weekly.categoryRaw,
+            primarySubMuscleName: weekly.subMuscleName
         )
         context.insert(newExercise)
         return newExercise.id
@@ -2167,7 +2282,8 @@ final class WorkoutRepository: ObservableObject {
             default: suffix = ""
             }
             if !suffix.isEmpty {
-                return "\(group.name) \(suffix)"
+                let scopeName = card.subMuscleName ?? group.name
+                return "\(scopeName) \(suffix)"
             }
         }
 
@@ -2198,12 +2314,16 @@ final class WorkoutRepository: ObservableObject {
                 return 0
             }
             let key = normalizeGroupName(group.name)
+            let subMuscleFilter = card.subMuscleName
             var exerciseWeights: [UUID: Double] = [:]
             for log in completionLogs where log.weekStartDate == activeWeekStart && log.categoryRaw == "exercise" {
                 let primaryKey = normalizeGroupName(log.muscleGroupName)
-                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
                 let weight: Double
                 if primaryKey == key {
+                    if let sub = subMuscleFilter, log.subMuscleNameSnapshot != sub {
+                        continue
+                    }
                     weight = 1.0
                 } else if secondaryKeys.contains(key) {
                     weight = secondaryMuscleWeight
@@ -2250,15 +2370,19 @@ final class WorkoutRepository: ObservableObject {
             return 0
         }
         let key = normalizeGroupName(group.name)
+        let subMuscleFilter = card.subMuscleName
         let total = completionLogs
             .filter { $0.weekStartDate == activeWeekStart && $0.categoryRaw == "exercise" }
             .reduce(0.0) { partial, log in
                 let value = valueForLog(log)
                 guard value != 0 else { return partial }
                 let primaryKey = normalizeGroupName(log.muscleGroupName)
-                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
 
                 if primaryKey == key {
+                    if let sub = subMuscleFilter, log.subMuscleNameSnapshot != sub {
+                        return partial
+                    }
                     return partial + value
                 } else if secondaryKeys.contains(key) {
                     return partial + value * secondaryMuscleWeight
@@ -2365,6 +2489,13 @@ final class WorkoutRepository: ObservableObject {
         value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+
+    private func resolveSecondaryGroupKey(_ entry: String) -> String {
+        if let idx = entry.firstIndex(of: "(") {
+            return normalizeGroupName(String(entry[entry.startIndex..<idx]))
+        }
+        return normalizeGroupName(entry)
     }
 
     private func uniqueActiveMuscleGroupsByNormalizedName() -> [MuscleGroupEntity] {

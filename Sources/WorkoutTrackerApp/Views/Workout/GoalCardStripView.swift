@@ -259,6 +259,7 @@ private struct AddGoalSheet: View {
     @State private var category: GoalCategory = .exercises
     @State private var target: Int = 10
     @State private var selectedMuscleGroupID: UUID?
+    @State private var selectedSubMuscle: String?
 
     private var needsMuscleGroup: Bool {
         category.supportsMuscleGroup && selectedMuscleGroupID != nil
@@ -283,6 +284,7 @@ private struct AddGoalSheet: View {
                     .pickerStyle(.menu)
                     .onChange(of: category) { _, _ in
                         selectedMuscleGroupID = nil
+                        selectedSubMuscle = nil
                         target = category.defaultTarget
                     }
 
@@ -291,6 +293,20 @@ private struct AddGoalSheet: View {
                             Text("All muscle groups").tag(Optional<UUID>.none)
                             ForEach(repository.muscleGroups.filter { !$0.isArchived }, id: \.id) { group in
                                 Text(group.name).tag(Optional(group.id))
+                            }
+                        }
+                        .onChange(of: selectedMuscleGroupID) { _, _ in
+                            selectedSubMuscle = nil
+                        }
+
+                        if let groupID = selectedMuscleGroupID,
+                           let groupName = repository.muscleGroups.first(where: { $0.id == groupID })?.name,
+                           let subMuscles = SeedCatalog.subMuscles[groupName], !subMuscles.isEmpty {
+                            Picker("Muscle", selection: $selectedSubMuscle) {
+                                Text("Any / All").tag(Optional<String>.none)
+                                ForEach(subMuscles, id: \.self) { sub in
+                                    Text(sub).tag(Optional(sub))
+                                }
                             }
                         }
                     }
@@ -327,7 +343,8 @@ private struct AddGoalSheet: View {
                         if hasMuscleGroup,
                            let id = selectedMuscleGroupID,
                            let group = repository.muscleGroups.first(where: { $0.id == id }) {
-                            title = "\(group.name) \(category.suffix)"
+                            let scopeName = selectedSubMuscle ?? group.name
+                            title = "\(scopeName) \(category.suffix)"
                         } else {
                             title = category.displayName
                         }
@@ -336,7 +353,8 @@ private struct AddGoalSheet: View {
                             metric: metric,
                             target: target,
                             title: title,
-                            muscleGroupID: selectedMuscleGroupID
+                            muscleGroupID: selectedMuscleGroupID,
+                            subMuscleName: selectedSubMuscle
                         )
                         isPresented = false
                     }

@@ -147,6 +147,7 @@ final class ExerciseEntity {
     var createdAt: Date
     var updatedAt: Date
     var categoryRaw: String
+    var primarySubMuscleName: String?
 
     init(
         id: UUID = UUID(),
@@ -159,7 +160,8 @@ final class ExerciseEntity {
         isArchived: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now,
-        categoryRaw: String = "exercise"
+        categoryRaw: String = "exercise",
+        primarySubMuscleName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -172,6 +174,7 @@ final class ExerciseEntity {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.categoryRaw = categoryRaw
+        self.primarySubMuscleName = primarySubMuscleName
     }
 
     var category: ExerciseCategory {
@@ -228,6 +231,7 @@ final class WorkoutTemplateExerciseEntity {
     var inclinePercent: Double?
     var distanceKm: Double?
     var heartRateTarget: Int?
+    var subMuscleName: String?
 
     init(
         id: UUID = UUID(),
@@ -252,7 +256,8 @@ final class WorkoutTemplateExerciseEntity {
         intensityLabel: String = "",
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
-        heartRateTarget: Int? = nil
+        heartRateTarget: Int? = nil,
+        subMuscleName: String? = nil
     ) {
         self.id = id
         self.templateID = templateID
@@ -277,6 +282,7 @@ final class WorkoutTemplateExerciseEntity {
         self.inclinePercent = inclinePercent
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
+        self.subMuscleName = subMuscleName
     }
 
     var category: ExerciseCategory {
@@ -312,6 +318,7 @@ final class WeeklyExerciseEntity {
     var inclinePercent: Double?
     var distanceKm: Double?
     var heartRateTarget: Int?
+    var subMuscleName: String?
 
     init(
         id: UUID = UUID(),
@@ -338,7 +345,8 @@ final class WeeklyExerciseEntity {
         intensityLabel: String = "",
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
-        heartRateTarget: Int? = nil
+        heartRateTarget: Int? = nil,
+        subMuscleName: String? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -365,6 +373,7 @@ final class WeeklyExerciseEntity {
         self.inclinePercent = inclinePercent
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
+        self.subMuscleName = subMuscleName
     }
 
     var category: ExerciseCategory {
@@ -396,6 +405,7 @@ final class CompletionLogEntity {
     var inclinePercentSnapshot: Double?
     var distanceKmSnapshot: Double?
     var heartRateTargetSnapshot: Int?
+    var subMuscleNameSnapshot: String?
 
     init(
         id: UUID = UUID(),
@@ -418,7 +428,8 @@ final class CompletionLogEntity {
         intensityLabelSnapshot: String = "",
         inclinePercentSnapshot: Double? = nil,
         distanceKmSnapshot: Double? = nil,
-        heartRateTargetSnapshot: Int? = nil
+        heartRateTargetSnapshot: Int? = nil,
+        subMuscleNameSnapshot: String? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -441,6 +452,7 @@ final class CompletionLogEntity {
         self.inclinePercentSnapshot = inclinePercentSnapshot
         self.distanceKmSnapshot = distanceKmSnapshot
         self.heartRateTargetSnapshot = heartRateTargetSnapshot
+        self.subMuscleNameSnapshot = subMuscleNameSnapshot
     }
 
     var category: ExerciseCategory {
@@ -458,6 +470,7 @@ final class GoalCardEntity {
     var muscleGroupID: UUID?
     var isSystem: Bool
     var isArchived: Bool
+    var subMuscleName: String?
 
     init(
         id: UUID = UUID(),
@@ -467,7 +480,8 @@ final class GoalCardEntity {
         orderIndex: Int,
         muscleGroupID: UUID?,
         isSystem: Bool = false,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        subMuscleName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -477,6 +491,7 @@ final class GoalCardEntity {
         self.muscleGroupID = muscleGroupID
         self.isSystem = isSystem
         self.isArchived = isArchived
+        self.subMuscleName = subMuscleName
     }
 
     var metricType: GoalMetricType {

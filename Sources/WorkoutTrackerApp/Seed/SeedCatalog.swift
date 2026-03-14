@@ -48,9 +48,18 @@ enum SeedCatalog {
         "Back",
         "Delts",
         "Legs",
-        "Grip / forearms",
+        "Forearms",
         "Neck",
         "Abs"
+    ]
+
+    static let subMuscles: [String: [String]] = [
+        "Chest": ["Upper", "Mid", "Lower"],
+        "Back": ["Lats", "Upper back", "Traps", "Lower back"],
+        "Delts": ["Front delt", "Side delt", "Rear delt"],
+        "Legs": ["Quads", "Hamstrings", "Glutes", "Calves", "Adductors"],
+        "Forearms": ["Wrist extensors", "Wrist flexors"],
+        "Abs": ["Upper abs", "Lower abs", "Obliques"]
     ]
 
     static let exercises: [SeedExercise] = [
@@ -589,7 +598,7 @@ enum SeedCatalog {
         .init(
             legacyID: 39,
             name: "Curl top 5x12x6kg-max",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -603,7 +612,7 @@ enum SeedCatalog {
         .init(
             legacyID: 40,
             name: "Curl bottom 5x18x10kg-max",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -617,7 +626,7 @@ enum SeedCatalog {
         .init(
             legacyID: 41,
             name: "Hang / fingers 3x 50-100s / swing bars 5x back n forth",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -631,7 +640,7 @@ enum SeedCatalog {
         .init(
             legacyID: 42,
             name: "Towel hang 5x 30s",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -645,7 +654,7 @@ enum SeedCatalog {
         .init(
             legacyID: 43,
             name: "Falsegrip",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -659,7 +668,7 @@ enum SeedCatalog {
         .init(
             legacyID: 44,
             name: "Finger push up",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -673,7 +682,7 @@ enum SeedCatalog {
         .init(
             legacyID: 45,
             name: "Ridge hang",
-            muscleGroup: "Grip / forearms",
+            muscleGroup: "Forearms",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -1093,7 +1102,7 @@ enum SeedCatalog {
             .init(displayName: "Squats (deep)", seedLegacyID: 35, sets: 5, reps: 8, seconds: nil, weightKg: 80),
             .init(displayName: "Leg curls", seedLegacyID: 33, sets: 5, reps: 10, seconds: nil, weightKg: 67),
         ]),
-        .init(headerTitle: "Grip / forearms", muscleGroup: "Grip / forearms", exercises: [
+        .init(headerTitle: "Forearms", muscleGroup: "Forearms", exercises: [
             .init(displayName: "Finger push up", seedLegacyID: 44, sets: nil, reps: nil, seconds: nil, weightKg: nil),
             .init(displayName: "Curl bottom", seedLegacyID: 40, sets: 5, reps: 20, seconds: nil, weightKg: 10),
             .init(displayName: "Hang / fingers", seedLegacyID: 41, sets: 3, reps: nil, seconds: 50, weightKg: nil),

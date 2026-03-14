@@ -217,14 +217,21 @@ struct ExerciseDetailSheet: View {
     }
 
     private var primaryAndSecondaryLine: String {
+        let primaryLabel: String
+        if let sub = exercise.subMuscleName, !sub.isEmpty {
+            primaryLabel = "\(exercise.muscleGroupName) (\(sub))"
+        } else {
+            primaryLabel = exercise.muscleGroupName
+        }
+
         let secondary = exercise.secondaryMuscleGroupsRaw
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         if secondary.isEmpty {
-            return exercise.muscleGroupName
+            return primaryLabel
         }
-        return "\(exercise.muscleGroupName) • Secondary: \(secondary.joined(separator: ", "))"
+        return "\(primaryLabel) • Secondary: \(secondary.joined(separator: ", "))"
     }
 
     private func displayedWeight(from kg: Double?) -> Double {

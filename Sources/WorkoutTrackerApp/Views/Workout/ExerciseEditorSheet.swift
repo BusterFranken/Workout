@@ -27,6 +27,7 @@ struct ExerciseEditorSheet: View {
     @State private var inclineInput: String = ""
     @State private var distanceInput: String = ""
     @State private var heartRateInput: String = ""
+    @State private var selectedSubMuscle: String?
     @FocusState private var focusName: Bool
 
     init(
@@ -57,16 +58,37 @@ struct ExerciseEditorSheet: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Picker("Primary Muscle Group", selection: $selectedPrimaryGroupID) {
+                    Picker("Muscle Group", selection: $selectedPrimaryGroupID) {
                         Text("Select group").tag(Optional<UUID>.none)
                         ForEach(repository.muscleGroups.filter { !$0.isArchived }, id: \.id) { group in
                             Text(group.name).tag(Optional(group.id))
                         }
                     }
+                    .onChange(of: selectedPrimaryGroupID) { _, _ in
+                        selectedSubMuscle = nil
+                    }
+
+                    if let groupName = repository.muscleGroups.first(where: { $0.id == selectedPrimaryGroupID })?.name,
+                       let subMuscles = SeedCatalog.subMuscles[groupName], !subMuscles.isEmpty {
+                        Picker("Muscle", selection: $selectedSubMuscle) {
+                            Text("Any / All").tag(Optional<String>.none)
+                            ForEach(subMuscles, id: \.self) { sub in
+                                Text(sub).tag(Optional(sub))
+                            }
+                        }
+                    }
 
                     SecondaryMuscleGroupPicker(
                         selectedGroups: $selectedSecondaryGroups,
-                        availableGroups: repository.muscleGroups.filter { !$0.isArchived }.map(\.name),
+                        availableGroups: repository.muscleGroups
+                            .filter { !$0.isArchived }
+                            .flatMap { group in
+                                var items = [group.name]
+                                if let subs = SeedCatalog.subMuscles[group.name] {
+                                    items += subs.map { "\(group.name) (\($0))" }
+                                }
+                                return items
+                            },
                         primaryGroupName: repository.muscleGroups.first { $0.id == selectedPrimaryGroupID }?.name ?? ""
                     )
                 }
@@ -232,6 +254,7 @@ struct ExerciseEditorSheet: View {
             .filter { !$0.isEmpty }
         notes = exercise.notes
         selectedPrimaryGroupID = exercise.muscleGroupID
+        selectedSubMuscle = exercise.subMuscleName
         selectedWeekday = exercise.weekdayIndex
         selectedCustomSlot = exercise.customSlot
 
@@ -297,6 +320,8 @@ struct ExerciseEditorSheet: View {
             exercise.muscleGroupID = group.id
             exercise.muscleGroupName = group.name
         }
+
+        exercise.subMuscleName = selectedSubMuscle
 
         repository.updateExercise(exercise, refresh: true)
     }

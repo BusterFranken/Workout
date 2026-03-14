@@ -221,10 +221,32 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
-// MARK: - V2 (adds categoryRaw, weeklyTarget, cardio fields)
+// MARK: - V2 (adds categoryRaw, weeklyTarget, cardio fields — uses live models)
 
 enum SchemaV2: VersionedSchema {
     static var versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
+// MARK: - V3 (adds sub-muscle fields)
+
+enum SchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
 
     static var models: [any PersistentModel.Type] {
         [
@@ -247,15 +269,20 @@ enum SchemaV2: VersionedSchema {
 
 enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2]
+        [migrateV1toV2, migrateV2toV3]
     }
 
     static let migrateV1toV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
+    )
+
+    static let migrateV2toV3 = MigrationStage.lightweight(
+        fromVersion: SchemaV2.self,
+        toVersion: SchemaV3.self
     )
 }

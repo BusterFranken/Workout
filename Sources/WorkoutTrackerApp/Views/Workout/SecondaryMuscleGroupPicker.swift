@@ -10,12 +10,17 @@ struct SecondaryMuscleGroupPicker: View {
 
     private var suggestions: [String] {
         let excluded = Set(selectedGroups + [primaryGroupName])
-        let candidates = availableGroups.filter { !excluded.contains($0) }
-        if searchText.isEmpty {
-            return candidates
+        let candidates = availableGroups.filter { name in
+            !excluded.contains(name) && !name.hasPrefix("\(primaryGroupName) (")
         }
-        return candidates.filter {
-            $0.localizedCaseInsensitiveContains(searchText)
+        let filtered = searchText.isEmpty
+            ? candidates
+            : candidates.filter { $0.localizedCaseInsensitiveContains(searchText) }
+        return filtered.sorted { a, b in
+            let aIsSub = a.contains("(")
+            let bIsSub = b.contains("(")
+            if aIsSub != bIsSub { return !aIsSub }
+            return a < b
         }
     }
 
@@ -64,7 +69,9 @@ struct SecondaryMuscleGroupPicker: View {
     }
 
     private func suggestionChip(for group: String) -> some View {
-        Button {
+        let isSubMuscle = group.contains("(")
+        let tint = isSubMuscle ? Theme.secondaryText : Theme.accent
+        return Button {
             selectedGroups.append(group)
             searchText = ""
         } label: {
@@ -72,8 +79,8 @@ struct SecondaryMuscleGroupPicker: View {
                 .font(.subheadline)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Theme.accent.opacity(0.15), in: Capsule())
-                .foregroundStyle(Theme.accent)
+                .background(tint.opacity(0.15), in: Capsule())
+                .foregroundStyle(tint)
         }
         .buttonStyle(.plain)
     }

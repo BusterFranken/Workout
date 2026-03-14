@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct GoalCardStripView: View {
     @EnvironmentObject private var repository: WorkoutRepository
@@ -8,12 +9,16 @@ struct GoalCardStripView: View {
 
     @State private var showingAddGoal = false
     @State private var editingGoalCard: GoalCardEntity?
+    @State private var activeDragGoalID: UUID?
+    @State private var hoveredGoalInsertionIndex: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(repository.activeGoalSnapshots) { snapshot in
+                HStack(spacing: 0) {
+                    goalInsertionIndicator(at: 0)
+
+                    ForEach(Array(repository.activeGoalSnapshots.enumerated()), id: \.element.id) { index, snapshot in
                         GoalCardView(
                             snapshot: snapshot,
                             isEditing: isEditing,
@@ -26,19 +31,23 @@ struct GoalCardStripView: View {
                                 }
                             }
                         )
-                        .draggable(snapshot.id.uuidString)
-                        .dropDestination(for: String.self) { items, _ in
-                            guard isEditing,
-                                  let moved = items.first,
-                                  let sourceID = UUID(uuidString: moved),
-                                  sourceID != snapshot.id,
-                                  let destination = repository.activeGoalSnapshots.firstIndex(where: { $0.id == snapshot.id })
-                            else {
-                                return false
-                            }
-                            repository.reorderGoals(from: sourceID, to: destination)
-                            return true
+                        .onDrag {
+                            activeDragGoalID = snapshot.id
+                            Haptics.soft()
+                            return NSItemProvider(object: snapshot.id.uuidString as NSString)
                         }
+                        .onDrop(of: [UTType.plainText], delegate: GoalCardDropDelegate(
+                            index: index,
+                            cardWidth: 165,
+                            activeDragGoalID: $activeDragGoalID,
+                            hoveredGoalInsertionIndex: $hoveredGoalInsertionIndex,
+                            onReorder: { sourceID, destination in
+                                repository.reorderGoals(from: sourceID, to: destination)
+                                Haptics.success()
+                            }
+                        ))
+
+                        goalInsertionIndicator(at: index + 1)
                     }
 
                     if repository.activeGoalSnapshots.count < 3 {
@@ -71,6 +80,63 @@ struct GoalCardStripView: View {
             EditGoalSheet(card: card, editingCard: $editingGoalCard)
                 .environmentObject(repository)
         }
+    }
+
+    private func goalInsertionIndicator(at index: Int) -> some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.clear.opacity(0.001))
+
+            Rectangle()
+                .fill(hoveredGoalInsertionIndex == index ? Theme.accent : .clear)
+                .frame(width: hoveredGoalInsertionIndex == index ? 3 : 1)
+        }
+        .contentShape(Rectangle())
+        .frame(width: 10)
+    }
+}
+
+private struct GoalCardDropDelegate: DropDelegate {
+    let index: Int
+    let cardWidth: CGFloat
+    @Binding var activeDragGoalID: UUID?
+    @Binding var hoveredGoalInsertionIndex: Int?
+    let onReorder: (UUID, Int) -> Void
+
+    private func insertionIndex(for location: CGPoint) -> Int {
+        location.x < (cardWidth * 0.5) ? index : index + 1
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        activeDragGoalID != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard validateDrop(info: info) else { return }
+        hoveredGoalInsertionIndex = insertionIndex(for: info.location)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard validateDrop(info: info) else { return DropProposal(operation: .cancel) }
+        hoveredGoalInsertionIndex = insertionIndex(for: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        hoveredGoalInsertionIndex = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer {
+            hoveredGoalInsertionIndex = nil
+            DispatchQueue.main.async {
+                activeDragGoalID = nil
+            }
+        }
+        guard let sourceID = activeDragGoalID else { return false }
+        let destination = insertionIndex(for: info.location)
+        onReorder(sourceID, destination)
+        return true
     }
 }
 

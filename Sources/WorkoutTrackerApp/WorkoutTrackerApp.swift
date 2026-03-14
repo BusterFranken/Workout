@@ -9,6 +9,11 @@ struct WorkoutsApp: App {
     @StateObject private var repository: WorkoutRepository
     @State private var accentRefreshToken = UUID()
 
+    #if DEBUG
+    /// Flip to `true` during development to wipe the database on next launch.
+    private static let forceResetDatabase = false
+    #endif
+
     init() {
         let schema = Schema([
             MuscleGroupEntity.self,
@@ -24,15 +29,40 @@ struct WorkoutsApp: App {
             SectionHeaderEntity.self
         ])
 
+        #if DEBUG
+        if Self.forceResetDatabase {
+            Self.deleteStoreFiles()
+        }
+        #endif
+
         let modelContainer: ModelContainer
         do {
-            modelContainer = try ModelContainer(for: schema)
+            modelContainer = try ModelContainer(
+                for: schema,
+                migrationPlan: WorkoutMigrationPlan.self
+            )
         } catch {
-            fatalError("Unable to initialize model container: \(error)")
+            // Delete corrupt/incompatible store as last resort
+            Self.deleteStoreFiles()
+            do {
+                modelContainer = try ModelContainer(
+                    for: schema,
+                    migrationPlan: WorkoutMigrationPlan.self
+                )
+            } catch {
+                fatalError("Unable to initialize model container after reset: \(error)")
+            }
         }
 
         container = modelContainer
         _repository = StateObject(wrappedValue: WorkoutRepository(context: modelContainer.mainContext))
+    }
+
+    private static func deleteStoreFiles() {
+        let url = URL.applicationSupportDirectory.appending(path: "default.store")
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-shm"))
+        try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-wal"))
     }
 
     var body: some Scene {

@@ -114,6 +114,7 @@ final class WorkoutRepository: ObservableObject {
     @Published private(set) var prRecords: [PRRecordEntity] = []
     @Published private(set) var sectionHeaders: [SectionHeaderEntity] = []
     @Published var errorMessage: String?
+    @Published var collapsedSectionIDs: Set<String> = []
 
     private let context: ModelContext
     private let secondaryMuscleWeight: Double = 0.5
@@ -137,6 +138,9 @@ final class WorkoutRepository: ObservableObject {
 
     init(context: ModelContext) {
         self.context = context
+        if let saved = UserDefaults.standard.stringArray(forKey: "collapsedSectionIDs") {
+            collapsedSectionIDs = Set(saved)
+        }
         bootstrapIfNeeded()
         refreshAll()
     }
@@ -159,6 +163,19 @@ final class WorkoutRepository: ObservableObject {
 
     var themePreference: AppThemePreference {
         settings?.themePreference ?? .system
+    }
+
+    func isSectionCollapsed(_ sectionID: String) -> Bool {
+        collapsedSectionIDs.contains(sectionID)
+    }
+
+    func toggleSectionCollapsed(_ sectionID: String) {
+        if collapsedSectionIDs.contains(sectionID) {
+            collapsedSectionIDs.remove(sectionID)
+        } else {
+            collapsedSectionIDs.insert(sectionID)
+        }
+        UserDefaults.standard.set(Array(collapsedSectionIDs), forKey: "collapsedSectionIDs")
     }
 
     var activeWeeklyExercises: [WeeklyExerciseEntity] {

@@ -1,3 +1,8 @@
+// ⚠️ IMPORTANT: These models are persisted to disk via SwiftData.
+// If you modify any stored properties (add, remove, rename, or change type),
+// you MUST create a new schema version in SchemaVersions.swift first.
+// See that file for step-by-step instructions.
+
 import Foundation
 import SwiftData
 

@@ -61,8 +61,12 @@ struct WorkoutView: View {
 
                                 MuscleGroupSectionView(
                                     section: section,
+                                    isCollapsed: repository.isSectionCollapsed(section.id),
                                     isReordering: isExerciseReorderMode || isSectionReorderMode,
                                     activeDragExerciseID: activeDragExerciseID,
+                                    onToggleCollapse: {
+                                        repository.toggleSectionCollapsed(section.id)
+                                    },
                                     onRenameSection: {
                                         if let header = section.sectionHeader {
                                             selectedHeaderForRename = header

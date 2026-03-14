@@ -3,8 +3,10 @@ import UniformTypeIdentifiers
 
 struct MuscleGroupSectionView: View {
     let section: WorkoutSectionModel
+    let isCollapsed: Bool
     let isReordering: Bool
     let activeDragExerciseID: UUID?
+    let onToggleCollapse: () -> Void
     let onRenameSection: () -> Void
     let onAddExercise: () -> Void
     let onRowEdit: (WeeklyExerciseEntity) -> Void
@@ -21,14 +23,24 @@ struct MuscleGroupSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(section.title)
-                    .font(.title3.weight(.bold))
+                HStack(spacing: 8) {
+                    Text(section.title)
+                        .font(.title3.weight(.bold))
 
-                Text("\(section.doneCount)")
-                    .font(.headline.monospacedDigit())
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.mutedSurface))
+                    Text("\(section.doneCount)")
+                        .font(.headline.monospacedDigit())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Theme.mutedSurface))
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !isReordering {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            onToggleCollapse()
+                        }
+                    }
+                }
 
                 Spacer()
 
@@ -56,7 +68,7 @@ struct MuscleGroupSectionView: View {
                     .foregroundStyle(Theme.secondaryText)
             }
 
-            if section.rows.isEmpty {
+            if !isCollapsed, section.rows.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(section.subtitle == "Rest" ? "Rest day" : "No exercises yet")
                         .font(.caption)
@@ -72,7 +84,7 @@ struct MuscleGroupSectionView: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(Theme.secondaryText.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
                 )
-            } else {
+            } else if !isCollapsed {
                 VStack(spacing: 0) {
                     ForEach(Array(section.rows.enumerated()), id: \.element.id) { index, row in
                         VStack(spacing: 0) {

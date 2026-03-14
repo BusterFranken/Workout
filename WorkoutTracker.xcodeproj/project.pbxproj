@@ -31,6 +31,7 @@
 		F3131CAC1B6CE3075C85101F /* WorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30383CBEAC1E46BF7ED99F98 /* WorkoutView.swift */; };
 		D1A2B3C4E5F607182930ABCD /* DataTransferModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F607182930ABCE /* DataTransferModels.swift */; };
 		F80B1EBF935DB5E6EF5934DE /* PersistedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6038DAF640EB750D1F5077 /* PersistedModels.swift */; };
+		B3C4D5E6F7081920A3B4C5DE /* SchemaVersions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B3C4D5E6F708192A3B4C5D /* SchemaVersions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		DC6038DAF640EB750D1F5077 /* PersistedModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedModels.swift; sourceTree = "<group>"; };
 		E642C2FF7DEB5EBF1EC6C0FA /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		FBD2A19E1BF459B97D8E43E1 /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
+		A2B3C4D5E6F708192A3B4C5D /* SchemaVersions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaVersions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -80,6 +82,7 @@
 				FBD2A19E1BF459B97D8E43E1 /* AppNavigationState.swift */,
 				D1A2B3C4E5F607182930ABCE /* DataTransferModels.swift */,
 				DC6038DAF640EB750D1F5077 /* PersistedModels.swift */,
+				A2B3C4D5E6F708192A3B4C5D /* SchemaVersions.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -262,6 +265,7 @@
 				6DC144F736641FE6C2D9C4B7 /* LibraryView.swift in Sources */,
 				25BC366814C950E5C8E0A4F1 /* MuscleGroupSectionView.swift in Sources */,
 				F80B1EBF935DB5E6EF5934DE /* PersistedModels.swift in Sources */,
+				B3C4D5E6F7081920A3B4C5DE /* SchemaVersions.swift in Sources */,
 				4D782C43ECFB58D09E9AE5F5 /* RootTabView.swift in Sources */,
 				9EDB5C38F45BFB6283172927 /* SeedCatalog.swift in Sources */,
 				05DF462F6B2610DB0D905374 /* Theme.swift in Sources */,

@@ -11,6 +11,11 @@ enum GoalMetricType: String, Codable, CaseIterable, Identifiable {
     case exercisesDone
     case muscleGroupSets
     case workoutDays
+    case muscleGroupExercises
+    case totalVolume
+    case muscleGroupVolume
+    case totalReps
+    case muscleGroupReps
 
     var id: String { rawValue }
 
@@ -24,6 +29,16 @@ enum GoalMetricType: String, Codable, CaseIterable, Identifiable {
             return "Muscle Sets"
         case .workoutDays:
             return "Workout Days"
+        case .muscleGroupExercises:
+            return "Muscle Exercises"
+        case .totalVolume:
+            return "Volume Load"
+        case .muscleGroupVolume:
+            return "Muscle Volume"
+        case .totalReps:
+            return "Reps"
+        case .muscleGroupReps:
+            return "Muscle Reps"
         }
     }
 }

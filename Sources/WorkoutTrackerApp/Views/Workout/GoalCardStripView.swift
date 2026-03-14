@@ -114,29 +114,90 @@ private struct GoalCardView: View {
     }
 }
 
+private enum GoalCategory: String, CaseIterable {
+    case sets, exercises, workoutDays, volume, reps
+
+    var displayName: String {
+        switch self {
+        case .sets: return "Sets"
+        case .exercises: return "Exercises"
+        case .workoutDays: return "Workout Days"
+        case .volume: return "Volume Load"
+        case .reps: return "Reps"
+        }
+    }
+
+    var supportsMuscleGroup: Bool { self != .workoutDays }
+
+    var defaultTarget: Int {
+        switch self {
+        case .sets: return 20
+        case .exercises: return 10
+        case .workoutDays: return 4
+        case .volume: return 10000
+        case .reps: return 200
+        }
+    }
+
+    func metricType(forMuscleGroup: Bool) -> GoalMetricType {
+        switch self {
+        case .sets: return forMuscleGroup ? .muscleGroupSets : .totalSets
+        case .exercises: return forMuscleGroup ? .muscleGroupExercises : .exercisesDone
+        case .workoutDays: return .workoutDays
+        case .volume: return forMuscleGroup ? .muscleGroupVolume : .totalVolume
+        case .reps: return forMuscleGroup ? .muscleGroupReps : .totalReps
+        }
+    }
+
+    var suffix: String {
+        switch self {
+        case .sets: return "Sets"
+        case .exercises: return "Exercises"
+        case .workoutDays: return "Workout Days"
+        case .volume: return "Volume"
+        case .reps: return "Reps"
+        }
+    }
+}
+
 private struct AddGoalSheet: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
     @Binding var isPresented: Bool
 
-    @State private var metric: GoalMetricType = .exercisesDone
+    @State private var category: GoalCategory = .exercises
     @State private var target: Int = 10
     @State private var selectedMuscleGroupID: UUID?
+
+    private var needsMuscleGroup: Bool {
+        category.supportsMuscleGroup && selectedMuscleGroupID != nil
+    }
+
+    private var targetRange: ClosedRange<Int> {
+        switch category {
+        case .volume, .reps: return 1...99999
+        default: return 1...300
+        }
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Metric") {
-                    Picker("Type", selection: $metric) {
-                        ForEach([GoalMetricType.totalSets, .exercisesDone, .muscleGroupSets, .workoutDays], id: \.self) { item in
-                            Text(item.title).tag(item)
+                    Picker("Category", selection: $category) {
+                        ForEach(GoalCategory.allCases, id: \.self) { cat in
+                            Text(cat.displayName).tag(cat)
                         }
                     }
                     .pickerStyle(.menu)
+                    .onChange(of: category) { _, _ in
+                        selectedMuscleGroupID = nil
+                        target = category.defaultTarget
+                    }
 
-                    if metric == .muscleGroupSets {
-                        Picker("Muscle", selection: $selectedMuscleGroupID) {
-                            Text("Pick a muscle").tag(Optional<UUID>.none)
+                    if category.supportsMuscleGroup {
+                        Picker("Scope", selection: $selectedMuscleGroupID) {
+                            Text("All muscle groups").tag(Optional<UUID>.none)
                             ForEach(repository.muscleGroups.filter { !$0.isArchived }, id: \.id) { group in
                                 Text(group.name).tag(Optional(group.id))
                             }
@@ -145,8 +206,19 @@ private struct AddGoalSheet: View {
                 }
 
                 Section("Target") {
-                    Stepper(value: $target, in: 1...300) {
-                        Text("\(target)")
+                    if category == .volume || category == .reps {
+                        HStack {
+                            Text("Target")
+                            Spacer()
+                            TextField("Target", value: $target, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
+                    } else {
+                        Stepper(value: $target, in: targetRange) {
+                            Text("\(target)")
+                        }
                     }
                 }
             }
@@ -157,21 +229,16 @@ private struct AddGoalSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
+                        let hasMuscleGroup = selectedMuscleGroupID != nil
+                        let metric = category.metricType(forMuscleGroup: hasMuscleGroup)
+
                         let title: String
-                        switch metric {
-                        case .totalSets:
-                            title = "Sets"
-                        case .exercisesDone:
-                            title = "Exercises"
-                        case .muscleGroupSets:
-                            if let id = selectedMuscleGroupID,
-                               let group = repository.muscleGroups.first(where: { $0.id == id }) {
-                                title = "\(group.name) Sets"
-                            } else {
-                                title = "Muscle Sets"
-                            }
-                        case .workoutDays:
-                            title = "Workout Days"
+                        if hasMuscleGroup,
+                           let id = selectedMuscleGroupID,
+                           let group = repository.muscleGroups.first(where: { $0.id == id }) {
+                            title = "\(group.name) \(category.suffix)"
+                        } else {
+                            title = category.displayName
                         }
 
                         repository.addCustomGoal(
@@ -182,7 +249,6 @@ private struct AddGoalSheet: View {
                         )
                         isPresented = false
                     }
-                    .disabled(metric == .muscleGroupSets && selectedMuscleGroupID == nil)
                 }
             }
         }

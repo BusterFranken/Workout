@@ -1964,10 +1964,19 @@ final class WorkoutRepository: ObservableObject {
     }
 
     private func goalTitle(for card: GoalCardEntity) -> String {
-        if card.metricType == .muscleGroupSets,
-           let muscleGroupID = card.muscleGroupID,
+        if let muscleGroupID = card.muscleGroupID,
            let group = muscleGroups.first(where: { $0.id == muscleGroupID }) {
-            return "\(group.name) Sets"
+            let suffix: String
+            switch card.metricType {
+            case .muscleGroupSets: suffix = "Sets"
+            case .muscleGroupExercises: suffix = "Exercises"
+            case .muscleGroupVolume: suffix = "Volume"
+            case .muscleGroupReps: suffix = "Reps"
+            default: suffix = ""
+            }
+            if !suffix.isEmpty {
+                return "\(group.name) \(suffix)"
+            }
         }
 
         return card.title
@@ -1980,28 +1989,9 @@ final class WorkoutRepository: ObservableObject {
         case .exercisesDone:
             return completedExercisesThisWeek
         case .muscleGroupSets:
-            guard let id = card.muscleGroupID,
-                  let group = muscleGroups.first(where: { $0.id == id })
-            else {
-                return 0
+            return muscleGroupWeightedSum(for: card) { log in
+                Double(log.setsSnapshot ?? 0)
             }
-            let key = normalizeGroupName(group.name)
-            let total = completionLogs
-                .filter { $0.weekStartDate == activeWeekStart }
-                .reduce(0.0) { partial, log in
-                    guard let sets = log.setsSnapshot else { return partial }
-                    let setsDouble = Double(sets)
-                    let primaryKey = normalizeGroupName(log.muscleGroupName)
-                    let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
-
-                    if primaryKey == key {
-                        return partial + setsDouble
-                    } else if secondaryKeys.contains(key) {
-                        return partial + setsDouble * secondaryMuscleWeight
-                    }
-                    return partial
-                }
-            return Int(round(total))
         case .workoutDays:
             let days = Set(
                 completionLogs
@@ -2009,7 +1999,81 @@ final class WorkoutRepository: ObservableObject {
                     .map { $0.completedAt.startOfDayDate() }
             )
             return days.count
+        case .muscleGroupExercises:
+            guard let id = card.muscleGroupID,
+                  let group = muscleGroups.first(where: { $0.id == id })
+            else {
+                return 0
+            }
+            let key = normalizeGroupName(group.name)
+            var exerciseWeights: [UUID: Double] = [:]
+            for log in completionLogs where log.weekStartDate == activeWeekStart {
+                let primaryKey = normalizeGroupName(log.muscleGroupName)
+                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+                let weight: Double
+                if primaryKey == key {
+                    weight = 1.0
+                } else if secondaryKeys.contains(key) {
+                    weight = secondaryMuscleWeight
+                } else {
+                    continue
+                }
+                exerciseWeights[log.weeklyExerciseID] = max(exerciseWeights[log.weeklyExerciseID] ?? 0, weight)
+            }
+            return Int(round(exerciseWeights.values.reduce(0, +)))
+        case .totalVolume:
+            let total = completionLogs
+                .filter { $0.weekStartDate == activeWeekStart }
+                .reduce(0.0) { partial, log in
+                    let sets = Double(log.setsSnapshot ?? 0)
+                    let reps = Double(log.repsSnapshot ?? 0)
+                    let weight = log.weightKgSnapshot ?? 0
+                    return partial + sets * reps * weight
+                }
+            return Int(round(total))
+        case .muscleGroupVolume:
+            return muscleGroupWeightedSum(for: card) { log in
+                Double(log.setsSnapshot ?? 0) * Double(log.repsSnapshot ?? 0) * (log.weightKgSnapshot ?? 0)
+            }
+        case .totalReps:
+            let total = completionLogs
+                .filter { $0.weekStartDate == activeWeekStart }
+                .reduce(0.0) { partial, log in
+                    let sets = Double(log.setsSnapshot ?? 0)
+                    let reps = Double(log.repsSnapshot ?? 0)
+                    return partial + sets * reps
+                }
+            return Int(round(total))
+        case .muscleGroupReps:
+            return muscleGroupWeightedSum(for: card) { log in
+                Double(log.setsSnapshot ?? 0) * Double(log.repsSnapshot ?? 0)
+            }
         }
+    }
+
+    private func muscleGroupWeightedSum(for card: GoalCardEntity, valueForLog: (CompletionLogEntity) -> Double) -> Int {
+        guard let id = card.muscleGroupID,
+              let group = muscleGroups.first(where: { $0.id == id })
+        else {
+            return 0
+        }
+        let key = normalizeGroupName(group.name)
+        let total = completionLogs
+            .filter { $0.weekStartDate == activeWeekStart }
+            .reduce(0.0) { partial, log in
+                let value = valueForLog(log)
+                guard value != 0 else { return partial }
+                let primaryKey = normalizeGroupName(log.muscleGroupName)
+                let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
+
+                if primaryKey == key {
+                    return partial + value
+                } else if secondaryKeys.contains(key) {
+                    return partial + value * secondaryMuscleWeight
+                }
+                return partial
+            }
+        return Int(round(total))
     }
 
     private func load(for exercise: WeeklyExerciseEntity) -> Double? {

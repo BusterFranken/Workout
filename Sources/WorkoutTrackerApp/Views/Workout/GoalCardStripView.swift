@@ -146,6 +146,15 @@ private struct GoalCardView: View {
     let onDelete: () -> Void
     let onEdit: () -> Void
 
+    private var isGoalHit: Bool {
+        snapshot.currentValue >= snapshot.targetValue && snapshot.targetValue > 0
+    }
+
+    private var progress: Double {
+        guard snapshot.targetValue > 0 else { return 0 }
+        return Double(snapshot.currentValue) / Double(snapshot.targetValue)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -166,12 +175,28 @@ private struct GoalCardView: View {
                 .buttonStyle(.plain)
             }
 
-            Text("\(snapshot.currentValue)/\(snapshot.targetValue)")
-                .font(.monoMetric)
+            HStack(spacing: 4) {
+                Text("\(snapshot.currentValue)/\(snapshot.targetValue)")
+                    .font(.monoMetric)
+                if isGoalHit {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.body)
+                }
+            }
 
-            Text(snapshot.currentValue >= snapshot.targetValue ? "Goal hit" : "\(snapshot.targetValue - snapshot.currentValue) left")
-                .font(.caption)
-                .foregroundStyle(Theme.secondaryText)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Theme.mutedSurface)
+                    Capsule()
+                        .fill(isGoalHit ? Color.green : Theme.accent)
+                        .frame(width: max(0, geo.size.width * min(progress, 1.0)))
+                }
+            }
+            .frame(height: 6)
+            .clipShape(Capsule())
+            .animation(.easeInOut(duration: 0.4), value: snapshot.currentValue)
         }
         .padding(14)
         .frame(width: 165, alignment: .leading)

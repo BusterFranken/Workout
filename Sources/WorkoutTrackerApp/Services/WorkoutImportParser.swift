@@ -6,6 +6,7 @@ struct ParsedImportLine {
     var reps: Int?
     var seconds: Int?
     var weightKg: Double?
+    var category: ExerciseCategory = .exercise
 }
 
 enum WorkoutImportParser {
@@ -52,6 +53,14 @@ enum WorkoutImportParser {
         }
 
         parsed.name = stripMetrics(from: line)
+
+        let lower = line.lowercased()
+        if lower.contains("stretch") {
+            parsed.category = .stretch
+        } else if lower.contains("cardio") || lower.contains("elliptical") || lower.contains("treadmill") {
+            parsed.category = .cardio
+        }
+
         return parsed
     }
 

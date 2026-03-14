@@ -425,9 +425,19 @@ struct WorkoutView: View {
                                 .foregroundStyle(Theme.secondaryText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                            Text("\(row.sets ?? 0) st")
-                                .font(.caption)
-                                .foregroundStyle(Theme.secondaryText)
+                            if row.weeklyTarget > 1 {
+                                doneProgressDots(for: row)
+                            }
+
+                            if row.category != .cardio {
+                                Text("\(row.sets ?? 0) st")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.secondaryText)
+                            } else if let dur = row.durationMinutes {
+                                Text("\(dur)m")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.secondaryText)
+                            }
                         }
                         .padding(.vertical, 4)
                     }
@@ -518,6 +528,18 @@ struct WorkoutView: View {
                     }
                     .disabled(newTemplateName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+        }
+    }
+
+    private func doneProgressDots(for exercise: WeeklyExerciseEntity) -> some View {
+        let done = repository.completionCount(for: exercise)
+        let target = exercise.weeklyTarget
+        return HStack(spacing: 2) {
+            ForEach(0..<target, id: \.self) { i in
+                Circle()
+                    .fill(i < done ? Theme.accent : Theme.secondaryText.opacity(0.3))
+                    .frame(width: 6, height: 6)
             }
         }
     }

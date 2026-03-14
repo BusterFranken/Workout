@@ -6,6 +6,12 @@
 import Foundation
 import SwiftData
 
+enum ExerciseCategory: String, Codable, CaseIterable {
+    case exercise = "exercise"
+    case stretch = "stretch"
+    case cardio = "cardio"
+}
+
 enum GoalMetricType: String, Codable, CaseIterable, Identifiable {
     case totalSets
     case exercisesDone
@@ -140,6 +146,7 @@ final class ExerciseEntity {
     var isArchived: Bool
     var createdAt: Date
     var updatedAt: Date
+    var categoryRaw: String
 
     init(
         id: UUID = UUID(),
@@ -151,7 +158,8 @@ final class ExerciseEntity {
         notes: String = "",
         isArchived: Bool = false,
         createdAt: Date = .now,
-        updatedAt: Date = .now
+        updatedAt: Date = .now,
+        categoryRaw: String = "exercise"
     ) {
         self.id = id
         self.name = name
@@ -163,6 +171,12 @@ final class ExerciseEntity {
         self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.categoryRaw = categoryRaw
+    }
+
+    var category: ExerciseCategory {
+        get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
+        set { categoryRaw = newValue.rawValue }
     }
 }
 
@@ -207,6 +221,13 @@ final class WorkoutTemplateExerciseEntity {
     var seconds: Int?
     var weightKg: Double?
     var headerID: UUID?
+    var categoryRaw: String
+    var weeklyTarget: Int
+    var durationMinutes: Int?
+    var intensityLabel: String
+    var inclinePercent: Double?
+    var distanceKm: Double?
+    var heartRateTarget: Int?
 
     init(
         id: UUID = UUID(),
@@ -224,7 +245,14 @@ final class WorkoutTemplateExerciseEntity {
         reps: Int?,
         seconds: Int?,
         weightKg: Double?,
-        headerID: UUID? = nil
+        headerID: UUID? = nil,
+        categoryRaw: String = "exercise",
+        weeklyTarget: Int = 1,
+        durationMinutes: Int? = nil,
+        intensityLabel: String = "",
+        inclinePercent: Double? = nil,
+        distanceKm: Double? = nil,
+        heartRateTarget: Int? = nil
     ) {
         self.id = id
         self.templateID = templateID
@@ -242,6 +270,18 @@ final class WorkoutTemplateExerciseEntity {
         self.seconds = seconds
         self.weightKg = weightKg
         self.headerID = headerID
+        self.categoryRaw = categoryRaw
+        self.weeklyTarget = weeklyTarget
+        self.durationMinutes = durationMinutes
+        self.intensityLabel = intensityLabel
+        self.inclinePercent = inclinePercent
+        self.distanceKm = distanceKm
+        self.heartRateTarget = heartRateTarget
+    }
+
+    var category: ExerciseCategory {
+        get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
+        set { categoryRaw = newValue.rawValue }
     }
 }
 
@@ -265,6 +305,13 @@ final class WeeklyExerciseEntity {
     var completedAt: Date?
     var removedAt: Date?
     var headerID: UUID?
+    var categoryRaw: String
+    var weeklyTarget: Int
+    var durationMinutes: Int?
+    var intensityLabel: String
+    var inclinePercent: Double?
+    var distanceKm: Double?
+    var heartRateTarget: Int?
 
     init(
         id: UUID = UUID(),
@@ -284,7 +331,14 @@ final class WeeklyExerciseEntity {
         weightKg: Double?,
         completedAt: Date? = nil,
         removedAt: Date? = nil,
-        headerID: UUID? = nil
+        headerID: UUID? = nil,
+        categoryRaw: String = "exercise",
+        weeklyTarget: Int = 1,
+        durationMinutes: Int? = nil,
+        intensityLabel: String = "",
+        inclinePercent: Double? = nil,
+        distanceKm: Double? = nil,
+        heartRateTarget: Int? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -304,6 +358,18 @@ final class WeeklyExerciseEntity {
         self.completedAt = completedAt
         self.removedAt = removedAt
         self.headerID = headerID
+        self.categoryRaw = categoryRaw
+        self.weeklyTarget = weeklyTarget
+        self.durationMinutes = durationMinutes
+        self.intensityLabel = intensityLabel
+        self.inclinePercent = inclinePercent
+        self.distanceKm = distanceKm
+        self.heartRateTarget = heartRateTarget
+    }
+
+    var category: ExerciseCategory {
+        get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
+        set { categoryRaw = newValue.rawValue }
     }
 }
 
@@ -324,6 +390,12 @@ final class CompletionLogEntity {
     var weightKgSnapshot: Double?
     var loadSnapshot: Double?
     var isSimulated: Bool
+    var categoryRaw: String
+    var durationMinutesSnapshot: Int?
+    var intensityLabelSnapshot: String
+    var inclinePercentSnapshot: Double?
+    var distanceKmSnapshot: Double?
+    var heartRateTargetSnapshot: Int?
 
     init(
         id: UUID = UUID(),
@@ -340,7 +412,13 @@ final class CompletionLogEntity {
         secondsSnapshot: Int?,
         weightKgSnapshot: Double?,
         loadSnapshot: Double?,
-        isSimulated: Bool = false
+        isSimulated: Bool = false,
+        categoryRaw: String = "exercise",
+        durationMinutesSnapshot: Int? = nil,
+        intensityLabelSnapshot: String = "",
+        inclinePercentSnapshot: Double? = nil,
+        distanceKmSnapshot: Double? = nil,
+        heartRateTargetSnapshot: Int? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -357,6 +435,16 @@ final class CompletionLogEntity {
         self.weightKgSnapshot = weightKgSnapshot
         self.loadSnapshot = loadSnapshot
         self.isSimulated = isSimulated
+        self.categoryRaw = categoryRaw
+        self.durationMinutesSnapshot = durationMinutesSnapshot
+        self.intensityLabelSnapshot = intensityLabelSnapshot
+        self.inclinePercentSnapshot = inclinePercentSnapshot
+        self.distanceKmSnapshot = distanceKmSnapshot
+        self.heartRateTargetSnapshot = heartRateTargetSnapshot
+    }
+
+    var category: ExerciseCategory {
+        ExerciseCategory(rawValue: categoryRaw) ?? .exercise
     }
 }
 

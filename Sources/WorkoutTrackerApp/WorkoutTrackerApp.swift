@@ -67,15 +67,25 @@ struct WorkoutsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
-                .environmentObject(navigation)
-                .environmentObject(repository)
-                .tint(Theme.accent)
-                .preferredColorScheme(colorScheme)
-                .id(accentRefreshToken)
-                .onReceive(NotificationCenter.default.publisher(for: .themeAccentDidChange)) { _ in
-                    accentRefreshToken = UUID()
+            ZStack {
+                RootTabView()
+                    .environmentObject(navigation)
+                    .environmentObject(repository)
+                    .tint(Theme.accent)
+                    .preferredColorScheme(colorScheme)
+                    .id(accentRefreshToken)
+                    .onReceive(NotificationCenter.default.publisher(for: .themeAccentDidChange)) { _ in
+                        accentRefreshToken = UUID()
+                    }
+
+                if let quote = repository.activeHaneyQuote {
+                    HaneyOverlayView(quote: quote) {
+                        repository.activeHaneyQuote = nil
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+            }
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: repository.activeHaneyQuote != nil)
         }
         .modelContainer(container)
     }

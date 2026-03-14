@@ -1,24 +1,26 @@
 import Foundation
 
 struct SeedExercise {
-    let legacyID: Int
-    let name: String
-    let muscleGroup: String
-    let secondaryMuscleGroups: [String]
-    let notes: String
-    let weekdayIndex: Int?
-    let customSlot: String?
-    let sets: Int?
-    let reps: Int?
-    let seconds: Int?
-    let weightKg: Double?
-    let synonyms: [String]
+    var legacyID: Int
+    var name: String
+    var muscleGroup: String
+    var secondaryMuscleGroups: [String]
+    var notes: String
+    var weekdayIndex: Int?
+    var customSlot: String?
+    var sets: Int?
+    var reps: Int?
+    var seconds: Int?
+    var weightKg: Double?
+    var synonyms: [String]
+    var category: ExerciseCategory = .exercise
 }
 
 struct Gainz3Section {
-    let headerTitle: String
-    let muscleGroup: String
-    let exercises: [Gainz3Exercise]
+    var headerTitle: String
+    var muscleGroup: String
+    var category: ExerciseCategory = .exercise
+    var exercises: [Gainz3Exercise]
 }
 
 struct Gainz3Exercise {
@@ -48,9 +50,7 @@ enum SeedCatalog {
         "Legs",
         "Grip / forearms",
         "Neck",
-        "Abs",
-        "Stretch",
-        "Cardio"
+        "Abs"
     ]
 
     static let exercises: [SeedExercise] = [
@@ -883,7 +883,7 @@ enum SeedCatalog {
         .init(
             legacyID: 60,
             name: "lay on back shoulder on knees",
-            muscleGroup: "Stretch",
+            muscleGroup: "Delts",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -892,12 +892,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 61,
             name: "door arms up (chest)",
-            muscleGroup: "Stretch",
+            muscleGroup: "Chest",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -906,12 +907,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: 30,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 62,
             name: "hammies weighted",
-            muscleGroup: "Stretch",
+            muscleGroup: "Legs",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -920,12 +922,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: 30,
             weightKg: 40,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 63,
             name: "childs pose reach sweep",
-            muscleGroup: "Stretch",
+            muscleGroup: "Back",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -934,12 +937,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 64,
             name: "lying pigeon stretches",
-            muscleGroup: "Stretch",
+            muscleGroup: "Legs",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -948,12 +952,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: 30,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 65,
             name: "door peck minor",
-            muscleGroup: "Stretch",
+            muscleGroup: "Chest",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -962,12 +967,13 @@ enum SeedCatalog {
             reps: nil,
             seconds: 30,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 66,
             name: "Neck stretch shoulders-back dumbell assisted",
-            muscleGroup: "Stretch",
+            muscleGroup: "Neck",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -976,7 +982,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 30,
             weightKg: 10,
-            synonyms: []
+            synonyms: [],
+            category: .stretch
         ),
         .init(
             legacyID: 67,
@@ -1023,7 +1030,7 @@ enum SeedCatalog {
         .init(
             legacyID: 70,
             name: "Elliptical 10m lvl 15 random hills",
-            muscleGroup: "Cardio",
+            muscleGroup: "Legs",
             secondaryMuscleGroups: [],
             notes: "",
             weekdayIndex: nil,
@@ -1032,7 +1039,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            category: .cardio
         )
     ]
 
@@ -1112,7 +1120,7 @@ enum SeedCatalog {
             .init(displayName: "dragon flag", seedLegacyID: 50, sets: nil, reps: nil, seconds: nil, weightKg: nil),
             .init(displayName: "bicycles", seedLegacyID: 55, sets: 3, reps: nil, seconds: 45, weightKg: nil),
         ]),
-        .init(headerTitle: "Stretch", muscleGroup: "Stretch", exercises: [
+        .init(headerTitle: "Stretch", muscleGroup: "Legs", category: .stretch, exercises: [
             .init(displayName: "lying pigeon stretches", seedLegacyID: 64, sets: 3, reps: nil, seconds: 30, weightKg: nil),
             .init(displayName: "door peck minor", seedLegacyID: 65, sets: 3, reps: nil, seconds: 30, weightKg: nil),
             .init(displayName: "lay on back shoulder on knees", seedLegacyID: 60, sets: nil, reps: nil, seconds: nil, weightKg: nil),
@@ -1128,7 +1136,7 @@ enum SeedCatalog {
             .init(displayName: "Band pull apart black thin", seedLegacyID: 68, sets: 4, reps: 20, seconds: nil, weightKg: nil),
             .init(displayName: "Prone Y raises", seedLegacyID: 69, sets: 5, reps: 12, seconds: nil, weightKg: nil),
         ]),
-        .init(headerTitle: "Cardio", muscleGroup: "Cardio", exercises: [
+        .init(headerTitle: "Cardio", muscleGroup: "Legs", category: .cardio, exercises: [
             .init(displayName: "Elliptical 10m lvl 15 random hills", seedLegacyID: 70, sets: nil, reps: nil, seconds: nil, weightKg: nil),
         ]),
     ]

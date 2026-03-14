@@ -44,6 +44,7 @@ struct ExerciseDTO: Codable {
     let isArchived: Bool
     let createdAt: Date
     let updatedAt: Date
+    let categoryRaw: String?
 
     init(from entity: ExerciseEntity) {
         self.id = entity.id
@@ -56,6 +57,7 @@ struct ExerciseDTO: Codable {
         self.isArchived = entity.isArchived
         self.createdAt = entity.createdAt
         self.updatedAt = entity.updatedAt
+        self.categoryRaw = entity.categoryRaw
     }
 
     func toEntity() -> ExerciseEntity {
@@ -69,7 +71,8 @@ struct ExerciseDTO: Codable {
             notes: notes,
             isArchived: isArchived,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            categoryRaw: categoryRaw ?? "exercise"
         )
     }
 }
@@ -117,6 +120,13 @@ struct WorkoutTemplateExerciseDTO: Codable {
     let seconds: Int?
     let weightKg: Double?
     let headerID: UUID?
+    let categoryRaw: String?
+    let weeklyTarget: Int?
+    let durationMinutes: Int?
+    let intensityLabel: String?
+    let inclinePercent: Double?
+    let distanceKm: Double?
+    let heartRateTarget: Int?
 
     init(from entity: WorkoutTemplateExerciseEntity) {
         self.id = entity.id
@@ -135,6 +145,13 @@ struct WorkoutTemplateExerciseDTO: Codable {
         self.seconds = entity.seconds
         self.weightKg = entity.weightKg
         self.headerID = entity.headerID
+        self.categoryRaw = entity.categoryRaw
+        self.weeklyTarget = entity.weeklyTarget
+        self.durationMinutes = entity.durationMinutes
+        self.intensityLabel = entity.intensityLabel
+        self.inclinePercent = entity.inclinePercent
+        self.distanceKm = entity.distanceKm
+        self.heartRateTarget = entity.heartRateTarget
     }
 
     func toEntity() -> WorkoutTemplateExerciseEntity {
@@ -154,7 +171,14 @@ struct WorkoutTemplateExerciseDTO: Codable {
             reps: reps,
             seconds: seconds,
             weightKg: weightKg,
-            headerID: headerID
+            headerID: headerID,
+            categoryRaw: categoryRaw ?? "exercise",
+            weeklyTarget: weeklyTarget ?? 1,
+            durationMinutes: durationMinutes,
+            intensityLabel: intensityLabel ?? "",
+            inclinePercent: inclinePercent,
+            distanceKm: distanceKm,
+            heartRateTarget: heartRateTarget
         )
     }
 }
@@ -178,6 +202,13 @@ struct WeeklyExerciseDTO: Codable {
     let completedAt: Date?
     let removedAt: Date?
     let headerID: UUID?
+    let categoryRaw: String?
+    let weeklyTarget: Int?
+    let durationMinutes: Int?
+    let intensityLabel: String?
+    let inclinePercent: Double?
+    let distanceKm: Double?
+    let heartRateTarget: Int?
 
     init(from entity: WeeklyExerciseEntity) {
         self.id = entity.id
@@ -198,6 +229,13 @@ struct WeeklyExerciseDTO: Codable {
         self.completedAt = entity.completedAt
         self.removedAt = entity.removedAt
         self.headerID = entity.headerID
+        self.categoryRaw = entity.categoryRaw
+        self.weeklyTarget = entity.weeklyTarget
+        self.durationMinutes = entity.durationMinutes
+        self.intensityLabel = entity.intensityLabel
+        self.inclinePercent = entity.inclinePercent
+        self.distanceKm = entity.distanceKm
+        self.heartRateTarget = entity.heartRateTarget
     }
 
     func toEntity() -> WeeklyExerciseEntity {
@@ -219,7 +257,14 @@ struct WeeklyExerciseDTO: Codable {
             weightKg: weightKg,
             completedAt: completedAt,
             removedAt: removedAt,
-            headerID: headerID
+            headerID: headerID,
+            categoryRaw: categoryRaw ?? "exercise",
+            weeklyTarget: weeklyTarget ?? 1,
+            durationMinutes: durationMinutes,
+            intensityLabel: intensityLabel ?? "",
+            inclinePercent: inclinePercent,
+            distanceKm: distanceKm,
+            heartRateTarget: heartRateTarget
         )
     }
 }
@@ -240,6 +285,12 @@ struct CompletionLogDTO: Codable {
     let weightKgSnapshot: Double?
     let loadSnapshot: Double?
     let isSimulated: Bool
+    let categoryRaw: String?
+    let durationMinutesSnapshot: Int?
+    let intensityLabelSnapshot: String?
+    let inclinePercentSnapshot: Double?
+    let distanceKmSnapshot: Double?
+    let heartRateTargetSnapshot: Int?
 
     init(from entity: CompletionLogEntity) {
         self.id = entity.id
@@ -257,6 +308,12 @@ struct CompletionLogDTO: Codable {
         self.weightKgSnapshot = entity.weightKgSnapshot
         self.loadSnapshot = entity.loadSnapshot
         self.isSimulated = entity.isSimulated
+        self.categoryRaw = entity.categoryRaw
+        self.durationMinutesSnapshot = entity.durationMinutesSnapshot
+        self.intensityLabelSnapshot = entity.intensityLabelSnapshot
+        self.inclinePercentSnapshot = entity.inclinePercentSnapshot
+        self.distanceKmSnapshot = entity.distanceKmSnapshot
+        self.heartRateTargetSnapshot = entity.heartRateTargetSnapshot
     }
 
     func toEntity() -> CompletionLogEntity {
@@ -275,7 +332,13 @@ struct CompletionLogDTO: Codable {
             secondsSnapshot: secondsSnapshot,
             weightKgSnapshot: weightKgSnapshot,
             loadSnapshot: loadSnapshot,
-            isSimulated: isSimulated
+            isSimulated: isSimulated,
+            categoryRaw: categoryRaw ?? "exercise",
+            durationMinutesSnapshot: durationMinutesSnapshot,
+            intensityLabelSnapshot: intensityLabelSnapshot ?? "",
+            inclinePercentSnapshot: inclinePercentSnapshot,
+            distanceKmSnapshot: distanceKmSnapshot,
+            heartRateTargetSnapshot: heartRateTargetSnapshot
         )
     }
 }

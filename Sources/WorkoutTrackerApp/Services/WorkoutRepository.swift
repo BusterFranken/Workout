@@ -115,8 +115,10 @@ final class WorkoutRepository: ObservableObject {
     @Published private(set) var sectionHeaders: [SectionHeaderEntity] = []
     @Published var errorMessage: String?
     @Published var collapsedSectionIDs: Set<String> = []
+    @Published var activeHaneyQuote: HaneyQuote?
 
     private let context: ModelContext
+    private let haneyEasterEgg = HaneyEasterEgg()
     private let secondaryMuscleWeight: Double = 1.0 / 3.0
 
     private let customSlots = ["A", "B", "C", "D", "E"]
@@ -232,11 +234,11 @@ final class WorkoutRepository: ObservableObject {
     }
 
     var totalSetsDoneThisWeek: Int {
-        doneExercises.compactMap(\.sets).reduce(0, +)
+        doneExercises.filter { $0.categoryRaw == "exercise" }.compactMap(\.sets).reduce(0, +)
     }
 
     var completedExercisesThisWeek: Int {
-        doneExercises.count
+        doneExercises.filter { $0.categoryRaw == "exercise" }.count
     }
 
     var activeGoalSnapshots: [GoalSnapshot] {
@@ -265,7 +267,7 @@ final class WorkoutRepository: ObservableObject {
         return stride(from: weeks - 1, through: 0, by: -1).compactMap { offset in
             guard let week = calendar.date(byAdding: .weekOfYear, value: -offset, to: activeWeekStart) else { return nil }
             let total = completionLogs
-                .filter { $0.weekStartDate == week }
+                .filter { $0.weekStartDate == week && $0.categoryRaw == "exercise" }
                 .compactMap(\.setsSnapshot)
                 .reduce(0, +)
             return WeekSetPoint(weekStart: week, sets: total)
@@ -297,7 +299,7 @@ final class WorkoutRepository: ObservableObject {
     }
 
     func currentWeekMuscleVolume() -> [MuscleVolumeSummary] {
-        let thisWeek = completionLogs.filter { $0.weekStartDate == activeWeekStart }
+        let thisWeek = completionLogs.filter { $0.weekStartDate == activeWeekStart && $0.categoryRaw == "exercise" }
 
         var setsByGroupName: [String: Double] = [:]
         var setsByGroupAndExercise: [String: [UUID: Double]] = [:]
@@ -372,7 +374,7 @@ final class WorkoutRepository: ObservableObject {
             for group in activeGroups {
                 let groupKey = normalizeGroupName(group.name)
                 let sum = completionLogs
-                    .filter { $0.weekStartDate == week }
+                    .filter { $0.weekStartDate == week && $0.categoryRaw == "exercise" }
                     .reduce(0.0) { partial, log in
                         guard let sets = log.setsSnapshot else { return partial }
                         let setsDouble = Double(sets)
@@ -740,7 +742,8 @@ final class WorkoutRepository: ObservableObject {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            headerID: header.id
+            headerID: header.id,
+            categoryRaw: exercise.categoryRaw
         )
 
         context.insert(row)
@@ -772,7 +775,8 @@ final class WorkoutRepository: ObservableObject {
                 reps: line.reps,
                 seconds: line.seconds,
                 weightKg: line.weightKg,
-                headerID: header.id
+                headerID: header.id,
+                categoryRaw: line.category.rawValue
             )
             context.insert(row)
             index += 1
@@ -868,7 +872,14 @@ final class WorkoutRepository: ObservableObject {
                 reps: row.reps,
                 seconds: row.seconds,
                 weightKg: row.weightKg,
-                headerID: newHeaderID
+                headerID: newHeaderID,
+                categoryRaw: row.categoryRaw,
+                weeklyTarget: row.weeklyTarget,
+                durationMinutes: row.durationMinutes,
+                intensityLabel: row.intensityLabel,
+                inclinePercent: row.inclinePercent,
+                distanceKm: row.distanceKm,
+                heartRateTarget: row.heartRateTarget
             )
             context.insert(weekly)
         }
@@ -913,10 +924,17 @@ final class WorkoutRepository: ObservableObject {
         }
     }
 
+    func completionCount(for exercise: WeeklyExerciseEntity) -> Int {
+        completionLogs.filter {
+            $0.weeklyExerciseID == exercise.id
+            && $0.weekStartDate == exercise.weekStartDate
+        }.count
+    }
+
     func toggleExerciseCompleted(_ exercise: WeeklyExerciseEntity) {
         if exercise.completedAt == nil {
-            exercise.completedAt = .now
-            removeCompletionLog(for: exercise)
+            // Add one completion log
+            let count = completionCount(for: exercise)
 
             context.insert(
                 CompletionLogEntity(
@@ -932,12 +950,58 @@ final class WorkoutRepository: ObservableObject {
                     repsSnapshot: exercise.reps,
                     secondsSnapshot: exercise.seconds,
                     weightKgSnapshot: exercise.weightKg,
-                    loadSnapshot: load(for: exercise)
+                    loadSnapshot: load(for: exercise),
+                    categoryRaw: exercise.categoryRaw,
+                    durationMinutesSnapshot: exercise.durationMinutes,
+                    intensityLabelSnapshot: exercise.intensityLabel,
+                    inclinePercentSnapshot: exercise.inclinePercent,
+                    distanceKmSnapshot: exercise.distanceKm,
+                    heartRateTargetSnapshot: exercise.heartRateTarget
                 )
             )
+
+            if count + 1 >= exercise.weeklyTarget {
+                exercise.completedAt = .now
+            }
+
+            // Haney Easter egg — evaluate after a short delay so the swipe animation lands first
+            let input = HaneyEasterEgg.EvaluationInput(
+                name: exercise.name,
+                reps: exercise.reps,
+                categoryRaw: exercise.categoryRaw,
+                muscleGroupID: exercise.muscleGroupID
+            )
+            let logEntries = completionLogs.map {
+                HaneyEasterEgg.CompletionLogEntry(
+                    muscleGroupID: $0.muscleGroupID,
+                    completedAt: $0.completedAt,
+                    setsSnapshot: $0.setsSnapshot
+                )
+            }
+            let progressionEntries = completionLogs.map {
+                HaneyEasterEgg.ProgressionLogEntry(
+                    exerciseID: $0.exerciseID,
+                    weekStartDate: $0.weekStartDate,
+                    weightKgSnapshot: $0.weightKgSnapshot
+                )
+            }
+            Task { @MainActor [haneyEasterEgg] in
+                try? await Task.sleep(for: .milliseconds(500))
+                if let quote = haneyEasterEgg.evaluate(
+                    exercise: input,
+                    completionLogs: logEntries,
+                    progressionLogs: progressionEntries
+                ) {
+                    self.activeHaneyQuote = quote
+                }
+            }
         } else {
-            exercise.completedAt = nil
-            removeCompletionLog(for: exercise)
+            // Undo: remove most recent completion log
+            let countBeforeDelete = completionCount(for: exercise)
+            removeMostRecentCompletionLog(for: exercise)
+            if countBeforeDelete - 1 < exercise.weeklyTarget {
+                exercise.completedAt = nil
+            }
         }
 
         saveAndRefresh()
@@ -986,7 +1050,8 @@ final class WorkoutRepository: ObservableObject {
                         secondsSnapshot: seconds,
                         weightKgSnapshot: weightKg,
                         loadSnapshot: loadSnapshot,
-                        isSimulated: true
+                        isSimulated: true,
+                        categoryRaw: exercise.categoryRaw
                     )
                 )
             }
@@ -1050,7 +1115,14 @@ final class WorkoutRepository: ObservableObject {
                 reps: row.reps,
                 seconds: row.seconds,
                 weightKg: row.weightKg,
-                headerID: templateHeaderID
+                headerID: templateHeaderID,
+                categoryRaw: row.categoryRaw,
+                weeklyTarget: row.weeklyTarget,
+                durationMinutes: row.durationMinutes,
+                intensityLabel: row.intensityLabel,
+                inclinePercent: row.inclinePercent,
+                distanceKm: row.distanceKm,
+                heartRateTarget: row.heartRateTarget
             )
             context.insert(snap)
         }
@@ -1126,7 +1198,14 @@ final class WorkoutRepository: ObservableObject {
                 weightKg: row.weightKg,
                 completedAt: nil,
                 removedAt: nil,
-                headerID: newHeaderID
+                headerID: newHeaderID,
+                categoryRaw: row.categoryRaw,
+                weeklyTarget: row.weeklyTarget,
+                durationMinutes: row.durationMinutes,
+                intensityLabel: row.intensityLabel,
+                inclinePercent: row.inclinePercent,
+                distanceKm: row.distanceKm,
+                heartRateTarget: row.heartRateTarget
             )
             context.insert(clone)
         }
@@ -1216,6 +1295,7 @@ final class WorkoutRepository: ObservableObject {
             guard let settings = self.settings,
                   settings.seedVersion < SeedCatalog.seedVersion
             else {
+                migrateStretchCardioCategories()
                 migrateToSectionHeadersIfNeeded()
                 refreshAll()
                 ensureDefaultGoalCard()
@@ -1228,6 +1308,7 @@ final class WorkoutRepository: ObservableObject {
 
             seedGainz3TemplateIfNeeded()
             migratePhantomMuscleGroups()
+            migrateStretchCardioCategories()
             settings.seedVersion = SeedCatalog.seedVersion
             ensureDefaultGoalCard()
             try context.save()
@@ -1315,7 +1396,8 @@ final class WorkoutRepository: ObservableObject {
                 primaryMuscleGroupName: seed.muscleGroup,
                 secondaryMuscleGroupsRaw: seed.secondaryMuscleGroups.joined(separator: ","),
                 synonymsRaw: seed.synonyms.joined(separator: ","),
-                notes: seed.notes
+                notes: seed.notes,
+                categoryRaw: seed.category.rawValue
             )
             context.insert(exercise)
 
@@ -1333,7 +1415,8 @@ final class WorkoutRepository: ObservableObject {
                 sets: seed.sets,
                 reps: seed.reps,
                 seconds: seed.seconds,
-                weightKg: seed.weightKg
+                weightKg: seed.weightKg,
+                categoryRaw: seed.category.rawValue
             )
             context.insert(item)
         }
@@ -1419,7 +1502,8 @@ final class WorkoutRepository: ObservableObject {
                     reps: entry.reps,
                     seconds: entry.seconds,
                     weightKg: entry.weightKg,
-                    headerID: header.id
+                    headerID: header.id,
+                    categoryRaw: section.category.rawValue
                 )
                 context.insert(item)
                 orderIndex += 1
@@ -1457,6 +1541,100 @@ final class WorkoutRepository: ObservableObject {
             // Delete the phantom MuscleGroupEntity
             for group in muscleGroups where normalizeGroupName(group.name) == oldNorm {
                 context.delete(group)
+            }
+        }
+
+        saveAndRefresh()
+    }
+
+    private func migrateStretchCardioCategories() {
+        // Only run if "Stretch" or "Cardio" muscle groups still exist and are not archived
+        let hasLegacyGroups = muscleGroups.contains {
+            let norm = normalizeGroupName($0.name)
+            return (norm == "stretch" || norm == "cardio") && !$0.isArchived
+        }
+        guard hasLegacyGroups else { return }
+
+        // Build a lookup from seed exercises for category and new muscle group
+        var seedLookup: [String: (category: ExerciseCategory, muscleGroup: String)] = [:]
+        for seed in SeedCatalog.exercises where seed.category != .exercise {
+            seedLookup[normalizedKey(seed.name)] = (seed.category, seed.muscleGroup)
+        }
+
+        // Migrate ExerciseEntity entries that have muscleGroup "Stretch" or "Cardio"
+        for exercise in exerciseCatalog {
+            let groupNorm = normalizeGroupName(exercise.primaryMuscleGroupName)
+            if groupNorm == "stretch" || groupNorm == "cardio" {
+                let cat: ExerciseCategory = groupNorm == "stretch" ? .stretch : .cardio
+                exercise.categoryRaw = cat.rawValue
+                if let match = seedLookup[normalizedKey(exercise.name)] {
+                    let group = ensureMuscleGroup(named: match.muscleGroup)
+                    exercise.primaryMuscleGroupID = group.id
+                    exercise.primaryMuscleGroupName = match.muscleGroup
+                } else {
+                    let group = ensureMuscleGroup(named: "Legs")
+                    exercise.primaryMuscleGroupID = group.id
+                    exercise.primaryMuscleGroupName = "Legs"
+                }
+            }
+        }
+
+        // Migrate WeeklyExerciseEntity
+        for weekly in weeklyExercises {
+            let groupNorm = normalizeGroupName(weekly.muscleGroupName)
+            if groupNorm == "stretch" || groupNorm == "cardio" {
+                weekly.categoryRaw = (groupNorm == "stretch" ? ExerciseCategory.stretch : .cardio).rawValue
+                if let match = seedLookup[normalizedKey(weekly.name)] {
+                    let group = ensureMuscleGroup(named: match.muscleGroup)
+                    weekly.muscleGroupID = group.id
+                    weekly.muscleGroupName = match.muscleGroup
+                } else {
+                    let group = ensureMuscleGroup(named: "Legs")
+                    weekly.muscleGroupID = group.id
+                    weekly.muscleGroupName = "Legs"
+                }
+            }
+        }
+
+        // Migrate WorkoutTemplateExerciseEntity
+        for item in templateExercises {
+            let groupNorm = normalizeGroupName(item.muscleGroupName)
+            if groupNorm == "stretch" || groupNorm == "cardio" {
+                item.categoryRaw = (groupNorm == "stretch" ? ExerciseCategory.stretch : .cardio).rawValue
+                if let match = seedLookup[normalizedKey(item.name)] {
+                    let group = ensureMuscleGroup(named: match.muscleGroup)
+                    item.muscleGroupID = group.id
+                    item.muscleGroupName = match.muscleGroup
+                } else {
+                    let group = ensureMuscleGroup(named: "Legs")
+                    item.muscleGroupID = group.id
+                    item.muscleGroupName = "Legs"
+                }
+            }
+        }
+
+        // Migrate CompletionLogEntity
+        for log in completionLogs {
+            let groupNorm = normalizeGroupName(log.muscleGroupName)
+            if groupNorm == "stretch" || groupNorm == "cardio" {
+                log.categoryRaw = (groupNorm == "stretch" ? ExerciseCategory.stretch : .cardio).rawValue
+                if let match = seedLookup[normalizedKey(log.nameSnapshot)] {
+                    let group = ensureMuscleGroup(named: match.muscleGroup)
+                    log.muscleGroupID = group.id
+                    log.muscleGroupName = match.muscleGroup
+                } else {
+                    let group = ensureMuscleGroup(named: "Legs")
+                    log.muscleGroupID = group.id
+                    log.muscleGroupName = "Legs"
+                }
+            }
+        }
+
+        // Archive the "Stretch" and "Cardio" MuscleGroupEntity entries
+        for group in muscleGroups {
+            let norm = normalizeGroupName(group.name)
+            if norm == "stretch" || norm == "cardio" {
+                group.isArchived = true
             }
         }
 
@@ -1735,6 +1913,7 @@ final class WorkoutRepository: ObservableObject {
         }) {
             existing.secondaryMuscleGroupsRaw = weekly.secondaryMuscleGroupsRaw
             existing.notes = weekly.notes
+            existing.categoryRaw = weekly.categoryRaw
             existing.updatedAt = .now
             return existing.id
         }
@@ -1744,7 +1923,8 @@ final class WorkoutRepository: ObservableObject {
             primaryMuscleGroupID: weekly.muscleGroupID,
             primaryMuscleGroupName: weekly.muscleGroupName,
             secondaryMuscleGroupsRaw: weekly.secondaryMuscleGroupsRaw,
-            notes: weekly.notes
+            notes: weekly.notes,
+            categoryRaw: weekly.categoryRaw
         )
         context.insert(newExercise)
         return newExercise.id
@@ -1757,6 +1937,18 @@ final class WorkoutRepository: ObservableObject {
         }
         for log in logs {
             context.delete(log)
+        }
+    }
+
+    private func removeMostRecentCompletionLog(for exercise: WeeklyExerciseEntity) {
+        let logs = completionLogs.filter {
+            $0.weeklyExerciseID == exercise.id
+            && $0.weekStartDate == exercise.weekStartDate
+        }
+        .sorted { $0.completedAt > $1.completedAt }
+
+        if let mostRecent = logs.first {
+            context.delete(mostRecent)
         }
     }
 
@@ -2007,7 +2199,7 @@ final class WorkoutRepository: ObservableObject {
             }
             let key = normalizeGroupName(group.name)
             var exerciseWeights: [UUID: Double] = [:]
-            for log in completionLogs where log.weekStartDate == activeWeekStart {
+            for log in completionLogs where log.weekStartDate == activeWeekStart && log.categoryRaw == "exercise" {
                 let primaryKey = normalizeGroupName(log.muscleGroupName)
                 let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(normalizeGroupName)
                 let weight: Double
@@ -2023,7 +2215,7 @@ final class WorkoutRepository: ObservableObject {
             return Int(round(exerciseWeights.values.reduce(0, +)))
         case .totalVolume:
             let total = completionLogs
-                .filter { $0.weekStartDate == activeWeekStart }
+                .filter { $0.weekStartDate == activeWeekStart && $0.categoryRaw == "exercise" }
                 .reduce(0.0) { partial, log in
                     let sets = Double(log.setsSnapshot ?? 0)
                     let reps = Double(log.repsSnapshot ?? 0)
@@ -2037,7 +2229,7 @@ final class WorkoutRepository: ObservableObject {
             }
         case .totalReps:
             let total = completionLogs
-                .filter { $0.weekStartDate == activeWeekStart }
+                .filter { $0.weekStartDate == activeWeekStart && $0.categoryRaw == "exercise" }
                 .reduce(0.0) { partial, log in
                     let sets = Double(log.setsSnapshot ?? 0)
                     let reps = Double(log.repsSnapshot ?? 0)
@@ -2059,7 +2251,7 @@ final class WorkoutRepository: ObservableObject {
         }
         let key = normalizeGroupName(group.name)
         let total = completionLogs
-            .filter { $0.weekStartDate == activeWeekStart }
+            .filter { $0.weekStartDate == activeWeekStart && $0.categoryRaw == "exercise" }
             .reduce(0.0) { partial, log in
                 let value = valueForLog(log)
                 guard value != 0 else { return partial }

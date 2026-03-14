@@ -221,14 +221,41 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
+// MARK: - V2 (adds categoryRaw, weeklyTarget, cardio fields)
+
+enum SchemaV2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
 // MARK: - Migration Plan
 
 enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self]
+        [SchemaV1.self, SchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        [] // No stages yet — V1 is the baseline
+        [migrateV1toV2]
     }
+
+    static let migrateV1toV2 = MigrationStage.lightweight(
+        fromVersion: SchemaV1.self,
+        toVersion: SchemaV2.self
+    )
 }

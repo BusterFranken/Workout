@@ -70,13 +70,23 @@ struct MuscleGroupSectionView: View {
 
             if !isCollapsed, section.rows.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(section.subtitle == "Rest" ? "Rest day" : "No exercises yet")
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondaryText)
+                    if section.subtitle == "Rest" {
+                        Text("Rest day")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                    } else if section.doneCount > 0 {
+                        Text("All done")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                    } else {
+                        Text("No exercises yet")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
 
-                    Text("Drop an exercise here")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondaryText.opacity(0.85))
+                        Text("Drop an exercise here")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondaryText.opacity(0.85))
+                    }
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)

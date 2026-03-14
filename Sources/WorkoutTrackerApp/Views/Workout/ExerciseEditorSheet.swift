@@ -15,7 +15,7 @@ struct ExerciseEditorSheet: View {
     @State private var seconds: String = ""
     @State private var useSeconds: Bool = false
     @State private var weightInput: String = ""
-    @State private var secondaryGroupsInput: String = ""
+    @State private var selectedSecondaryGroups: [String] = []
     @State private var notes: String = ""
     @State private var selectedPrimaryGroupID: UUID?
     @State private var selectedWeekday: Int?
@@ -50,7 +50,11 @@ struct ExerciseEditorSheet: View {
                         }
                     }
 
-                    TextField("Secondary muscle groups (comma-separated)", text: $secondaryGroupsInput)
+                    SecondaryMuscleGroupPicker(
+                        selectedGroups: $selectedSecondaryGroups,
+                        availableGroups: repository.muscleGroups.filter { !$0.isArchived }.map(\.name),
+                        primaryGroupName: repository.muscleGroups.first { $0.id == selectedPrimaryGroupID }?.name ?? ""
+                    )
                 }
 
                 Section("Targets") {
@@ -139,7 +143,10 @@ struct ExerciseEditorSheet: View {
             weightInput = "BW"
         }
 
-        secondaryGroupsInput = exercise.secondaryMuscleGroupsRaw
+        selectedSecondaryGroups = exercise.secondaryMuscleGroupsRaw
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
         notes = exercise.notes
         selectedPrimaryGroupID = exercise.muscleGroupID
         selectedWeekday = exercise.weekdayIndex
@@ -163,11 +170,7 @@ struct ExerciseEditorSheet: View {
         }
 
         exercise.weightKg = Formatting.parseWeightEntry(weightInput, unit: repository.unitSystem)
-        exercise.secondaryMuscleGroupsRaw = secondaryGroupsInput
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: ",")
+        exercise.secondaryMuscleGroupsRaw = selectedSecondaryGroups.joined(separator: ",")
 
         exercise.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         exercise.weekdayIndex = selectedWeekday

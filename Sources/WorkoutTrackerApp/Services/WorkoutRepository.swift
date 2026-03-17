@@ -1248,17 +1248,61 @@ final class WorkoutRepository: ObservableObject {
         let startDate = calendar.date(byAdding: .day, value: -(totalDays - 1), to: today) ?? today
         let exercises = activeWeeklyExercises.sorted { $0.orderIndex < $1.orderIndex }
 
+        // Separate strength vs stretch/cardio
+        let strengthExercises = exercises.filter { $0.categoryRaw == "exercise" }
+        let otherExercises = exercises.filter { $0.categoryRaw != "exercise" }
+
+        // Build split sessions and weekly schedule
+        let sessions = buildTrainingSplit(from: strengthExercises)
+        let schedule = buildWeeklySchedule(sessionCount: sessions.count)
+
         for dayOffset in 0..<totalDays {
             guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startDate)?.startOfDayDate() else { continue }
-            let weekday = calendar.component(.weekday, from: date)
-            let trainingDayChance = simulatedTrainingChance(for: weekday)
-            let dayRoll = deterministicUnit("sim-day-\(Int(date.timeIntervalSince1970))")
-            guard dayRoll < trainingDayChance else { continue }
+            let weekday = calendar.component(.weekday, from: date) // Sun=1..Sat=7
 
-            for exercise in exercises {
-                let exerciseRoll = deterministicUnit("sim-ex-\(exercise.id.uuidString)-\(Int(date.timeIntervalSince1970))")
-                let completionChance = simulatedCompletionChance(for: exercise)
-                guard exerciseRoll < completionChance else { continue }
+            // Check if a session is scheduled for this weekday
+            guard let sessionIndex = schedule[weekday] else { continue }
+
+            // 15% chance to miss a training day
+            let missRoll = deterministicUnit("sim-miss-\(Int(date.timeIntervalSince1970))")
+            guard missRoll >= 0.15 else { continue }
+
+            let sessionExercises = sessions[sessionIndex]
+
+            // Log all exercises in the session
+            for exercise in sessionExercises {
+                let sets = simulatedSets(for: exercise, dayIndex: dayOffset)
+                let reps = simulatedReps(for: exercise, dayIndex: dayOffset)
+                let seconds = simulatedSeconds(for: exercise, dayIndex: dayOffset)
+                let weightKg = simulatedWeightKg(for: exercise, date: date, startDate: startDate)
+                let loadSnapshot = simulatedLoad(weightKg: weightKg, reps: reps)
+
+                context.insert(
+                    CompletionLogEntity(
+                        weekStartDate: date.startOfWorkoutWeek(),
+                        weeklyExerciseID: exercise.id,
+                        exerciseID: exercise.exerciseID,
+                        nameSnapshot: exercise.name,
+                        muscleGroupID: exercise.muscleGroupID,
+                        muscleGroupName: exercise.muscleGroupName,
+                        secondaryMuscleGroupsRaw: exercise.secondaryMuscleGroupsRaw,
+                        completedAt: date,
+                        setsSnapshot: sets,
+                        repsSnapshot: reps,
+                        secondsSnapshot: seconds,
+                        weightKgSnapshot: weightKg,
+                        loadSnapshot: loadSnapshot,
+                        isSimulated: true,
+                        categoryRaw: exercise.categoryRaw,
+                        subMuscleNameSnapshot: exercise.subMuscleName
+                    )
+                )
+            }
+
+            // Stretch/cardio: 30% per-exercise chance on training days
+            for exercise in otherExercises {
+                let roll = deterministicUnit("sim-other-\(exercise.id.uuidString)-\(Int(date.timeIntervalSince1970))")
+                guard roll < 0.30 else { continue }
 
                 let sets = simulatedSets(for: exercise, dayIndex: dayOffset)
                 let reps = simulatedReps(for: exercise, dayIndex: dayOffset)
@@ -1290,6 +1334,86 @@ final class WorkoutRepository: ObservableObject {
         }
 
         saveAndRefresh()
+    }
+
+    /// Groups strength exercises by muscle group and packs them into sessions of 4-8 exercises.
+    private func buildTrainingSplit(from exercises: [WeeklyExerciseEntity]) -> [[WeeklyExerciseEntity]] {
+        // Group by muscle group name
+        var groups: [String: [WeeklyExerciseEntity]] = [:]
+        for exercise in exercises {
+            let key = normalizeGroupName(exercise.muscleGroupName)
+            groups[key, default: []].append(exercise)
+        }
+
+        // Sort groups by size descending for greedy packing
+        let sortedGroups = groups.sorted { $0.value.count > $1.value.count }
+
+        var sessions: [[WeeklyExerciseEntity]] = []
+        var currentSession: [WeeklyExerciseEntity] = []
+
+        for (_, groupExercises) in sortedGroups {
+            if currentSession.count + groupExercises.count > 8 && currentSession.count >= 4 {
+                // Current session is full enough, close it
+                sessions.append(currentSession)
+                currentSession = groupExercises
+            } else {
+                currentSession.append(contentsOf: groupExercises)
+                if currentSession.count >= 8 {
+                    sessions.append(currentSession)
+                    currentSession = []
+                }
+            }
+        }
+
+        // Handle remaining exercises
+        if !currentSession.isEmpty {
+            if let last = sessions.last, last.count + currentSession.count <= 8 {
+                // Merge small leftovers into last session
+                sessions[sessions.count - 1].append(contentsOf: currentSession)
+            } else {
+                sessions.append(currentSession)
+            }
+        }
+
+        // If only 1 session with >6 exercises, split in half for variety
+        if sessions.count == 1 && sessions[0].count > 6 {
+            let all = sessions[0]
+            let mid = all.count / 2
+            sessions = [Array(all[..<mid]), Array(all[mid...])]
+        }
+
+        // Fallback: if no exercises produced sessions, return one empty-safe session
+        if sessions.isEmpty {
+            sessions = [exercises]
+        }
+
+        return sessions
+    }
+
+    /// Maps N sessions to weekdays. Returns [weekday: sessionIndex]. Sunday (1) is always rest.
+    private func buildWeeklySchedule(sessionCount: Int) -> [Int: Int] {
+        switch sessionCount {
+        case 1:
+            // 1 session → Mon/Wed/Fri (same session 3x/week)
+            return [2: 0, 4: 0, 6: 0]
+        case 2:
+            // 2 sessions → Mon+Thu=A, Tue+Fri=B (4x/week)
+            return [2: 0, 3: 1, 5: 0, 6: 1]
+        case 3:
+            // 3 sessions → Mon=A, Wed=B, Fri=C, Sat=A (4x/week)
+            return [2: 0, 4: 1, 6: 2, 7: 0]
+        case 4:
+            // 4 sessions → Mon=A, Tue=B, Thu=C, Fri=D (4x/week)
+            return [2: 0, 3: 1, 5: 2, 6: 3]
+        default:
+            // 5+ sessions → Mon-Wed + Fri-Sat
+            var schedule: [Int: Int] = [:]
+            let weekdays = [2, 3, 4, 6, 7] // Mon, Tue, Wed, Fri, Sat
+            for (i, day) in weekdays.enumerated() {
+                schedule[day] = i % sessionCount
+            }
+            return schedule
+        }
     }
 
     func removeSimulatedActivityHistory() {
@@ -2656,32 +2780,15 @@ final class WorkoutRepository: ObservableObject {
         return sets * Double(reps) * kg
     }
 
-    private func simulatedTrainingChance(for weekday: Int) -> Double {
-        switch weekday {
-        case 2, 3, 4:
-            return 0.68 // Mon-Wed
-        case 5, 6:
-            return 0.55 // Thu-Fri
-        case 7:
-            return 0.32 // Sat
-        default:
-            return 0.18 // Sun
-        }
-    }
-
-    private func simulatedCompletionChance(for exercise: WeeklyExerciseEntity) -> Double {
-        let base = exercise.seconds != nil ? 0.26 : 0.42
-        let orderPenalty = min(Double(exercise.orderIndex) * 0.03, 0.18)
-        let personality = deterministicUnit("sim-personality-\(exercise.id.uuidString)") * 0.18
-        return max(0.12, min(0.82, base + personality - orderPenalty))
-    }
-
     private func simulatedSets(for exercise: WeeklyExerciseEntity, dayIndex: Int) -> Int? {
-        let base = exercise.sets ?? (3 + Int(deterministicUnit("sim-base-sets-\(exercise.id.uuidString)") * 3))
-        let shouldVary = deterministicUnit("sim-var-sets-\(exercise.id.uuidString)-\(dayIndex)") < 0.16
+        // Base of 3-4: heavier/compound exercises (≥50kg) get 4, lighter get 3
+        let weightKg = exercise.weightKg ?? (20 + deterministicUnit("sim-base-weight-\(exercise.id.uuidString)") * 40)
+        let base = weightKg >= 50 ? 4 : 3
+        // 20% chance of ±1
+        let shouldVary = deterministicUnit("sim-var-sets-\(exercise.id.uuidString)-\(dayIndex)") < 0.20
         let delta = deterministicUnit("sim-delta-sets-\(exercise.id.uuidString)-\(dayIndex)") < 0.5 ? -1 : 1
         let value = shouldVary ? base + delta : base
-        return max(1, value)
+        return max(2, min(5, value))
     }
 
     private func simulatedReps(for exercise: WeeklyExerciseEntity, dayIndex: Int) -> Int? {
@@ -2704,19 +2811,51 @@ final class WorkoutRepository: ObservableObject {
     }
 
     private func simulatedWeightKg(for exercise: WeeklyExerciseEntity, date: Date, startDate: Date) -> Double? {
+        // Time-based exercises (stretches etc.) keep their weight as-is
         if exercise.seconds != nil && exercise.reps == nil {
             return exercise.weightKg
         }
 
         let days = max(Calendar.workout.dateComponents([.day], from: startDate, to: date).day ?? 0, 0)
         let weeks = Double(days) / 7.0
+        let weekIndex = Int(weeks)
 
         let base = exercise.weightKg
             ?? (20 + deterministicUnit("sim-base-weight-\(exercise.id.uuidString)") * 40)
-        let weeklyTrend = (deterministicUnit("sim-trend-\(exercise.id.uuidString)") - 0.42) * 0.45
-        let jitter = (deterministicUnit("sim-jitter-\(exercise.id.uuidString)-\(days)") - 0.5) * 1.2
 
-        let value = max(2.0, base + (weeklyTrend * weeks) + jitter)
+        // Start at 70-80% of base weight (deterministic per exercise)
+        let startFraction = 0.70 + deterministicUnit("sim-start-\(exercise.id.uuidString)") * 0.10
+        let startWeight = base * startFraction
+
+        // Weekly trend scaled by weight tier
+        let weeklyGain: Double
+        let tierRoll = deterministicUnit("sim-tier-\(exercise.id.uuidString)")
+        if base >= 50 {
+            // Heavy compounds: +1.0-2.0 kg/week
+            weeklyGain = 1.0 + tierRoll * 1.0
+        } else if base >= 20 {
+            // Medium: +0.5-1.0 kg/week
+            weeklyGain = 0.5 + tierRoll * 0.5
+        } else {
+            // Light isolation: +0.2-0.5 kg/week
+            weeklyGain = 0.2 + tierRoll * 0.3
+        }
+
+        // Deload every 5th week: -10%
+        let isDeloadWeek = weekIndex > 0 && weekIndex % 5 == 4
+        let deloadMultiplier = isDeloadWeek ? 0.90 : 1.0
+
+        // Session-to-session jitter ±1kg
+        let jitter = (deterministicUnit("sim-jitter-\(exercise.id.uuidString)-\(days)") - 0.5) * 2.0
+
+        // Calculate weight with progression
+        let progressive = startWeight + (weeklyGain * weeks)
+
+        // Cap at ~105% of base weight
+        let capped = min(progressive, base * 1.05)
+        let value = max(2.0, (capped * deloadMultiplier) + jitter)
+
+        // Round to nearest 0.5kg
         return (value * 2).rounded() / 2
     }
 

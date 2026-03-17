@@ -892,7 +892,9 @@ final class WorkoutRepository: ObservableObject {
             weightKg: nil,
             headerID: header.id,
             categoryRaw: exercise.categoryRaw,
-            subMuscleName: exercise.primarySubMuscleName
+            subMuscleName: exercise.primarySubMuscleName,
+            instructionStepsRaw: exercise.instructionStepsRaw,
+            instructionImagesData: exercise.instructionImagesData
         )
 
         context.insert(row)
@@ -1031,7 +1033,9 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
-                subMuscleName: row.subMuscleName
+                subMuscleName: row.subMuscleName,
+                instructionStepsRaw: row.instructionStepsRaw,
+                instructionImagesData: row.instructionImagesData
             )
             context.insert(weekly)
         }
@@ -1238,13 +1242,13 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
-    func saveWorkoutToLibrary(name: String) {
+    func saveWorkoutToLibrary(name: String, emoji: String? = nil, notes: String? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         settings?.activeWorkoutName = trimmed
 
-        let template = WorkoutTemplateEntity(name: trimmed)
+        let template = WorkoutTemplateEntity(name: trimmed, emoji: emoji, notes: notes)
         context.insert(template)
 
         // Save headers to template
@@ -1287,11 +1291,18 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
-                subMuscleName: row.subMuscleName
+                subMuscleName: row.subMuscleName,
+                instructionStepsRaw: row.instructionStepsRaw,
+                instructionImagesData: row.instructionImagesData
             )
             context.insert(snap)
         }
 
+        saveAndRefresh()
+    }
+
+    func updateTemplate(_ template: WorkoutTemplateEntity) {
+        template.updatedAt = .now
         saveAndRefresh()
     }
 
@@ -1373,7 +1384,9 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
-                subMuscleName: row.subMuscleName
+                subMuscleName: row.subMuscleName,
+                instructionStepsRaw: row.instructionStepsRaw,
+                instructionImagesData: row.instructionImagesData
             )
             context.insert(clone)
         }
@@ -2199,6 +2212,8 @@ final class WorkoutRepository: ObservableObject {
             existing.notes = weekly.notes
             existing.categoryRaw = weekly.categoryRaw
             existing.primarySubMuscleName = weekly.subMuscleName
+            existing.instructionStepsRaw = weekly.instructionStepsRaw
+            existing.instructionImagesData = weekly.instructionImagesData
             existing.updatedAt = .now
             return existing.id
         }
@@ -2210,7 +2225,9 @@ final class WorkoutRepository: ObservableObject {
             secondaryMuscleGroupsRaw: weekly.secondaryMuscleGroupsRaw,
             notes: weekly.notes,
             categoryRaw: weekly.categoryRaw,
-            primarySubMuscleName: weekly.subMuscleName
+            primarySubMuscleName: weekly.subMuscleName,
+            instructionStepsRaw: weekly.instructionStepsRaw,
+            instructionImagesData: weekly.instructionImagesData
         )
         context.insert(newExercise)
         return newExercise.id

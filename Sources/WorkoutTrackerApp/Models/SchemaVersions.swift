@@ -299,15 +299,59 @@ enum SchemaV4: VersionedSchema {
     }
 }
 
+// MARK: - V5 (adds emoji, notes, coverImageData to WorkoutTemplateEntity)
+
+enum SchemaV5: VersionedSchema {
+    static var versionIdentifier = Schema.Version(5, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
+// MARK: - V6 (adds instructionStepsRaw, instructionImagesData to exercise entities)
+
+enum SchemaV6: VersionedSchema {
+    static var versionIdentifier = Schema.Version(6, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
 // MARK: - Migration Plan
 
 enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3, migrateV3toV4]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6]
     }
 
     static let migrateV1toV2 = MigrationStage.lightweight(
@@ -323,5 +367,15 @@ enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static let migrateV3toV4 = MigrationStage.lightweight(
         fromVersion: SchemaV3.self,
         toVersion: SchemaV4.self
+    )
+
+    static let migrateV4toV5 = MigrationStage.lightweight(
+        fromVersion: SchemaV4.self,
+        toVersion: SchemaV5.self
+    )
+
+    static let migrateV5toV6 = MigrationStage.lightweight(
+        fromVersion: SchemaV5.self,
+        toVersion: SchemaV6.self
     )
 }

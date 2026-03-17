@@ -46,6 +46,8 @@ struct ExerciseDTO: Codable {
     let updatedAt: Date
     let categoryRaw: String?
     let primarySubMuscleName: String?
+    let instructionStepsRaw: String?
+    let instructionImagesData: Data?
 
     init(from entity: ExerciseEntity) {
         self.id = entity.id
@@ -60,6 +62,8 @@ struct ExerciseDTO: Codable {
         self.updatedAt = entity.updatedAt
         self.categoryRaw = entity.categoryRaw
         self.primarySubMuscleName = entity.primarySubMuscleName
+        self.instructionStepsRaw = entity.instructionStepsRaw
+        self.instructionImagesData = entity.instructionImagesData
     }
 
     func toEntity() -> ExerciseEntity {
@@ -75,7 +79,9 @@ struct ExerciseDTO: Codable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             categoryRaw: categoryRaw ?? "exercise",
-            primarySubMuscleName: primarySubMuscleName
+            primarySubMuscleName: primarySubMuscleName,
+            instructionStepsRaw: instructionStepsRaw ?? "",
+            instructionImagesData: instructionImagesData
         )
     }
 }
@@ -86,6 +92,9 @@ struct WorkoutTemplateDTO: Codable {
     let isArchived: Bool
     let createdAt: Date
     let updatedAt: Date
+    let emoji: String?
+    let notes: String?
+    let coverImageBase64: String?
 
     init(from entity: WorkoutTemplateEntity) {
         self.id = entity.id
@@ -93,6 +102,9 @@ struct WorkoutTemplateDTO: Codable {
         self.isArchived = entity.isArchived
         self.createdAt = entity.createdAt
         self.updatedAt = entity.updatedAt
+        self.emoji = entity.emoji
+        self.notes = entity.notes
+        self.coverImageBase64 = entity.coverImageData?.base64EncodedString()
     }
 
     func toEntity() -> WorkoutTemplateEntity {
@@ -101,7 +113,10 @@ struct WorkoutTemplateDTO: Codable {
             name: name,
             isArchived: isArchived,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            emoji: emoji,
+            notes: notes,
+            coverImageData: coverImageBase64.flatMap { Data(base64Encoded: $0) }
         )
     }
 }
@@ -131,6 +146,8 @@ struct WorkoutTemplateExerciseDTO: Codable {
     let distanceKm: Double?
     let heartRateTarget: Int?
     let subMuscleName: String?
+    let instructionStepsRaw: String?
+    let instructionImagesData: Data?
 
     init(from entity: WorkoutTemplateExerciseEntity) {
         self.id = entity.id
@@ -157,6 +174,8 @@ struct WorkoutTemplateExerciseDTO: Codable {
         self.distanceKm = entity.distanceKm
         self.heartRateTarget = entity.heartRateTarget
         self.subMuscleName = entity.subMuscleName
+        self.instructionStepsRaw = entity.instructionStepsRaw
+        self.instructionImagesData = entity.instructionImagesData
     }
 
     func toEntity() -> WorkoutTemplateExerciseEntity {
@@ -184,7 +203,9 @@ struct WorkoutTemplateExerciseDTO: Codable {
             inclinePercent: inclinePercent,
             distanceKm: distanceKm,
             heartRateTarget: heartRateTarget,
-            subMuscleName: subMuscleName
+            subMuscleName: subMuscleName,
+            instructionStepsRaw: instructionStepsRaw ?? "",
+            instructionImagesData: instructionImagesData
         )
     }
 }
@@ -216,6 +237,8 @@ struct WeeklyExerciseDTO: Codable {
     let distanceKm: Double?
     let heartRateTarget: Int?
     let subMuscleName: String?
+    let instructionStepsRaw: String?
+    let instructionImagesData: Data?
 
     init(from entity: WeeklyExerciseEntity) {
         self.id = entity.id
@@ -244,6 +267,8 @@ struct WeeklyExerciseDTO: Codable {
         self.distanceKm = entity.distanceKm
         self.heartRateTarget = entity.heartRateTarget
         self.subMuscleName = entity.subMuscleName
+        self.instructionStepsRaw = entity.instructionStepsRaw
+        self.instructionImagesData = entity.instructionImagesData
     }
 
     func toEntity() -> WeeklyExerciseEntity {
@@ -273,7 +298,9 @@ struct WeeklyExerciseDTO: Codable {
             inclinePercent: inclinePercent,
             distanceKm: distanceKm,
             heartRateTarget: heartRateTarget,
-            subMuscleName: subMuscleName
+            subMuscleName: subMuscleName,
+            instructionStepsRaw: instructionStepsRaw ?? "",
+            instructionImagesData: instructionImagesData
         )
     }
 }

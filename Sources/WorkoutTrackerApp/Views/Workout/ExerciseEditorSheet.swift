@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 struct ExerciseEditorSheet: View {
@@ -28,6 +29,9 @@ struct ExerciseEditorSheet: View {
     @State private var distanceInput: String = ""
     @State private var heartRateInput: String = ""
     @State private var selectedSubMuscle: String?
+    @State private var instructionSteps: [String] = []
+    @State private var instructionImageItems: [PhotosPickerItem] = []
+    @State private var instructionImageDatas: [Data] = []
     @FocusState private var focusName: Bool
 
     init(
@@ -200,6 +204,80 @@ struct ExerciseEditorSheet: View {
                     TextEditor(text: $notes)
                         .frame(minHeight: 90)
                 }
+
+                Section("Instructions") {
+                    ForEach(Array(instructionSteps.enumerated()), id: \.offset) { index, _ in
+                        HStack {
+                            Text("\(index + 1).")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+                            TextField("Step \(index + 1)", text: $instructionSteps[index])
+                            Button {
+                                instructionSteps.remove(at: index)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    Button {
+                        instructionSteps.append("")
+                    } label: {
+                        Label("Add Step", systemImage: "plus.circle")
+                    }
+
+                    #if canImport(UIKit)
+                    if !instructionImageDatas.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(Array(instructionImageDatas.enumerated()), id: \.offset) { index, data in
+                                    ZStack(alignment: .topTrailing) {
+                                        if let uiImage = UIImage(data: data) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 80, height: 80)
+                                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        }
+                                        Button {
+                                            instructionImageDatas.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.white, .red)
+                                        }
+                                        .offset(x: 6, y: -6)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    #endif
+
+                    if instructionImageDatas.count < 5 {
+                        PhotosPicker(
+                            selection: $instructionImageItems,
+                            maxSelectionCount: 5 - instructionImageDatas.count,
+                            matching: .images
+                        ) {
+                            Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+                        }
+                        .onChange(of: instructionImageItems) { _, newItems in
+                            Task {
+                                for item in newItems {
+                                    if let data = try? await item.loadTransferable(type: Data.self) {
+                                        if let compressed = compressImage(data) {
+                                            instructionImageDatas.append(compressed)
+                                        }
+                                    }
+                                }
+                                instructionImageItems.removeAll()
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle("Edit Exercise")
             .toolbar {
@@ -257,6 +335,8 @@ struct ExerciseEditorSheet: View {
         selectedSubMuscle = exercise.subMuscleName
         selectedWeekday = exercise.weekdayIndex
         selectedCustomSlot = exercise.customSlot
+        instructionSteps = exercise.instructionSteps
+        instructionImageDatas = exercise.instructionImages
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             focusName = true
@@ -323,7 +403,30 @@ struct ExerciseEditorSheet: View {
 
         exercise.subMuscleName = selectedSubMuscle
 
+        let filteredSteps = instructionSteps.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        exercise.instructionSteps = filteredSteps
+        exercise.instructionImages = instructionImageDatas
+
         repository.updateExercise(exercise, refresh: true)
+    }
+
+    private func compressImage(_ data: Data, maxDimension: CGFloat = 800, quality: CGFloat = 0.6) -> Data? {
+        #if canImport(UIKit)
+        guard let image = UIImage(data: data) else { return nil }
+        let size = image.size
+        let scale = min(maxDimension / max(size.width, size.height), 1.0)
+        if scale >= 1.0 {
+            return image.jpegData(compressionQuality: quality)
+        }
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        return resized.jpegData(compressionQuality: quality)
+        #else
+        return nil
+        #endif
     }
 }
 

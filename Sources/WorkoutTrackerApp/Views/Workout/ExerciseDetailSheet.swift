@@ -6,6 +6,7 @@ struct ExerciseDetailSheet: View {
 
     let exercise: WeeklyExerciseEntity
     @State private var showingEditor = false
+    @State private var selectedImage: IdentifiableImageData?
     private let chartScrollThreshold = 10
     private let chartPointWidth: CGFloat = 36
 
@@ -169,6 +170,47 @@ struct ExerciseDetailSheet: View {
                         }
                     }
 
+                    if !exercise.instructionSteps.isEmpty || !exercise.instructionImages.isEmpty {
+                        chartCard(title: "Instructions") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                #if canImport(UIKit)
+                                if !exercise.instructionImages.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 10) {
+                                            ForEach(Array(exercise.instructionImages.enumerated()), id: \.offset) { index, data in
+                                                if let uiImage = UIImage(data: data) {
+                                                    Image(uiImage: uiImage)
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fill)
+                                                        .frame(width: 120, height: 120)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                        .onTapGesture {
+                                                            selectedImage = IdentifiableImageData(data: data)
+                                                        }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                #endif
+
+                                if !exercise.instructionSteps.isEmpty {
+                                    ForEach(Array(exercise.instructionSteps.enumerated()), id: \.offset) { index, step in
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Text("\(index + 1).")
+                                                .font(.subheadline.bold())
+                                                .foregroundStyle(Theme.secondaryText)
+                                                .frame(width: 24, alignment: .trailing)
+                                            Text(step)
+                                                .font(.subheadline)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Button {
                         showingEditor = true
                     } label: {
@@ -189,6 +231,23 @@ struct ExerciseDetailSheet: View {
                 ExerciseEditorSheet(isPresented: $showingEditor, exercise: exercise)
                     .environmentObject(repository)
             }
+            #if canImport(UIKit)
+            .sheet(item: $selectedImage) { item in
+                NavigationStack {
+                    if let uiImage = UIImage(data: item.data) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { selectedImage = nil }
+                                }
+                            }
+                    }
+                }
+            }
+            #endif
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
@@ -252,6 +311,11 @@ struct ExerciseDetailSheet: View {
         let padding = max(span * 0.1, 0.5)
         return (minValue - padding)...(maxValue + padding)
     }
+}
+
+private struct IdentifiableImageData: Identifiable {
+    let id = UUID()
+    let data: Data
 }
 
 private struct ScrollableChartContainer<Content: View>: View {

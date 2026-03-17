@@ -148,6 +148,8 @@ final class ExerciseEntity {
     var updatedAt: Date
     var categoryRaw: String
     var primarySubMuscleName: String?
+    var instructionStepsRaw: String
+    @Attribute(.externalStorage) var instructionImagesData: Data?
 
     init(
         id: UUID = UUID(),
@@ -161,7 +163,9 @@ final class ExerciseEntity {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         categoryRaw: String = "exercise",
-        primarySubMuscleName: String? = nil
+        primarySubMuscleName: String? = nil,
+        instructionStepsRaw: String = "",
+        instructionImagesData: Data? = nil
     ) {
         self.id = id
         self.name = name
@@ -175,11 +179,31 @@ final class ExerciseEntity {
         self.updatedAt = updatedAt
         self.categoryRaw = categoryRaw
         self.primarySubMuscleName = primarySubMuscleName
+        self.instructionStepsRaw = instructionStepsRaw
+        self.instructionImagesData = instructionImagesData
     }
 
     var category: ExerciseCategory {
         get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
         set { categoryRaw = newValue.rawValue }
+    }
+
+    var instructionSteps: [String] {
+        get { instructionStepsRaw.isEmpty ? [] : instructionStepsRaw.components(separatedBy: "\n") }
+        set { instructionStepsRaw = newValue.joined(separator: "\n") }
+    }
+
+    var instructionImages: [Data] {
+        get {
+            guard let data = instructionImagesData,
+                  let strings = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return strings.compactMap { Data(base64Encoded: $0) }
+        }
+        set {
+            guard !newValue.isEmpty else { instructionImagesData = nil; return }
+            let strings = newValue.map { $0.base64EncodedString() }
+            instructionImagesData = try? JSONEncoder().encode(strings)
+        }
     }
 }
 
@@ -190,19 +214,28 @@ final class WorkoutTemplateEntity {
     var isArchived: Bool
     var createdAt: Date
     var updatedAt: Date
+    var emoji: String?
+    var notes: String?
+    var coverImageData: Data?
 
     init(
         id: UUID = UUID(),
         name: String,
         isArchived: Bool = false,
         createdAt: Date = .now,
-        updatedAt: Date = .now
+        updatedAt: Date = .now,
+        emoji: String? = nil,
+        notes: String? = nil,
+        coverImageData: Data? = nil
     ) {
         self.id = id
         self.name = name
         self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.emoji = emoji
+        self.notes = notes
+        self.coverImageData = coverImageData
     }
 }
 
@@ -232,6 +265,8 @@ final class WorkoutTemplateExerciseEntity {
     var distanceKm: Double?
     var heartRateTarget: Int?
     var subMuscleName: String?
+    var instructionStepsRaw: String
+    @Attribute(.externalStorage) var instructionImagesData: Data?
 
     init(
         id: UUID = UUID(),
@@ -257,7 +292,9 @@ final class WorkoutTemplateExerciseEntity {
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
         heartRateTarget: Int? = nil,
-        subMuscleName: String? = nil
+        subMuscleName: String? = nil,
+        instructionStepsRaw: String = "",
+        instructionImagesData: Data? = nil
     ) {
         self.id = id
         self.templateID = templateID
@@ -283,11 +320,31 @@ final class WorkoutTemplateExerciseEntity {
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
         self.subMuscleName = subMuscleName
+        self.instructionStepsRaw = instructionStepsRaw
+        self.instructionImagesData = instructionImagesData
     }
 
     var category: ExerciseCategory {
         get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
         set { categoryRaw = newValue.rawValue }
+    }
+
+    var instructionSteps: [String] {
+        get { instructionStepsRaw.isEmpty ? [] : instructionStepsRaw.components(separatedBy: "\n") }
+        set { instructionStepsRaw = newValue.joined(separator: "\n") }
+    }
+
+    var instructionImages: [Data] {
+        get {
+            guard let data = instructionImagesData,
+                  let strings = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return strings.compactMap { Data(base64Encoded: $0) }
+        }
+        set {
+            guard !newValue.isEmpty else { instructionImagesData = nil; return }
+            let strings = newValue.map { $0.base64EncodedString() }
+            instructionImagesData = try? JSONEncoder().encode(strings)
+        }
     }
 }
 
@@ -319,6 +376,8 @@ final class WeeklyExerciseEntity {
     var distanceKm: Double?
     var heartRateTarget: Int?
     var subMuscleName: String?
+    var instructionStepsRaw: String
+    @Attribute(.externalStorage) var instructionImagesData: Data?
 
     init(
         id: UUID = UUID(),
@@ -346,7 +405,9 @@ final class WeeklyExerciseEntity {
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
         heartRateTarget: Int? = nil,
-        subMuscleName: String? = nil
+        subMuscleName: String? = nil,
+        instructionStepsRaw: String = "",
+        instructionImagesData: Data? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -374,11 +435,31 @@ final class WeeklyExerciseEntity {
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
         self.subMuscleName = subMuscleName
+        self.instructionStepsRaw = instructionStepsRaw
+        self.instructionImagesData = instructionImagesData
     }
 
     var category: ExerciseCategory {
         get { ExerciseCategory(rawValue: categoryRaw) ?? .exercise }
         set { categoryRaw = newValue.rawValue }
+    }
+
+    var instructionSteps: [String] {
+        get { instructionStepsRaw.isEmpty ? [] : instructionStepsRaw.components(separatedBy: "\n") }
+        set { instructionStepsRaw = newValue.joined(separator: "\n") }
+    }
+
+    var instructionImages: [Data] {
+        get {
+            guard let data = instructionImagesData,
+                  let strings = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return strings.compactMap { Data(base64Encoded: $0) }
+        }
+        set {
+            guard !newValue.isEmpty else { instructionImagesData = nil; return }
+            let strings = newValue.map { $0.base64EncodedString() }
+            instructionImagesData = try? JSONEncoder().encode(strings)
+        }
     }
 }
 

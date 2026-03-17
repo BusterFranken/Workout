@@ -264,13 +264,10 @@ struct ExerciseRowView: View {
         let x = abs(translation.width)
         let y = abs(translation.height)
         guard max(x, y) >= swipeActivationDistance else { return .undetermined }
-        if x > y * 1.15 {
+        if x > y * 1.5 {
             return .horizontal
         }
-        if y > x * 1.15 {
-            return .vertical
-        }
-        return .undetermined
+        return .vertical
     }
 
     @ViewBuilder

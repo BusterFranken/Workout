@@ -99,6 +99,11 @@ struct MuscleAvgSummary: Identifiable {
     let isNeglected: Bool
 }
 
+struct MuscleBalanceResult {
+    let summaries: [MuscleAvgSummary]
+    let weeksWithData: Int
+}
+
 struct ExercisePRSnapshot: Identifiable {
     let id = UUID()
     let label: String
@@ -435,10 +440,10 @@ final class WorkoutRepository: ObservableObject {
         return points
     }
 
-    func neglectedMuscleAverages() -> [MuscleAvgSummary] {
+    func neglectedMuscleAverages() -> MuscleBalanceResult {
         let calendar = Calendar.workout
         let activeGroups = uniqueActiveMuscleGroupsByNormalizedName()
-        guard !activeGroups.isEmpty else { return [] }
+        guard !activeGroups.isEmpty else { return MuscleBalanceResult(summaries: [], weeksWithData: 1) }
 
         // Collect sets for each muscle group over the last 4 weeks
         var groupTotals: [String: Double] = [:]
@@ -446,9 +451,13 @@ final class WorkoutRepository: ObservableObject {
             groupTotals[normalizeGroupName(group.name)] = 0
         }
 
+        var weeksWithData = 0
+
         for offset in 0..<4 {
             guard let week = calendar.date(byAdding: .weekOfYear, value: -offset, to: activeWeekStart) else { continue }
             let weekLogs = completionLogs.filter { $0.weekStartDate == week && $0.categoryRaw == "exercise" }
+
+            if !weekLogs.isEmpty { weeksWithData += 1 }
 
             for log in weekLogs {
                 guard let sets = log.setsSnapshot else { continue }
@@ -470,7 +479,7 @@ final class WorkoutRepository: ObservableObject {
 
         let headerGoals: [String: Int] = Dictionary(
             activeWeeklyHeaders.compactMap { header -> (String, Int)? in
-                guard let goal = header.weeklyGoal, goal > 0 else { return nil }
+                guard let goal = header.weeklySetGoal, goal > 0 else { return nil }
                 return (normalizeGroupName(header.title), goal)
             },
             uniquingKeysWith: { first, _ in first }
@@ -481,7 +490,7 @@ final class WorkoutRepository: ObservableObject {
 
         for group in activeGroups {
             let key = normalizeGroupName(group.name)
-            let avg = (groupTotals[key] ?? 0) / 4.0
+            let avg = (groupTotals[key] ?? 0) / max(Double(weeksWithData), 1.0)
 
             if let goal = activeGoals.first(where: { $0.muscleGroupID == group.id }), goal.targetValue > 0 {
                 let pct = avg / Double(goal.targetValue)
@@ -528,7 +537,7 @@ final class WorkoutRepository: ObservableObject {
             ))
         }
 
-        return results
+        return MuscleBalanceResult(summaries: results, weeksWithData: max(weeksWithData, 1))
     }
 
     func progressionLogs(for exercise: WeeklyExerciseEntity) -> [CompletionLogEntity] {
@@ -737,6 +746,11 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func updateHeaderSetGoal(_ header: SectionHeaderEntity, setGoal: Int?) {
+        header.weeklySetGoal = setGoal
+        saveAndRefresh()
+    }
+
     func exerciseCountForHeader(_ header: SectionHeaderEntity) -> Int {
         activeWeeklyExercises.filter { $0.headerID == header.id }.count
     }
@@ -941,7 +955,8 @@ final class WorkoutRepository: ObservableObject {
                 title: templateHeader.title,
                 orderIndex: existingHeaderCount + index,
                 weekStartDate: activeWeekStart,
-                weeklyGoal: templateHeader.weeklyGoal
+                weeklyGoal: templateHeader.weeklyGoal,
+                weeklySetGoal: templateHeader.weeklySetGoal
             )
             context.insert(weeklyHeader)
             headerMapping[templateHeader.id] = weeklyHeader.id
@@ -1321,7 +1336,8 @@ final class WorkoutRepository: ObservableObject {
                 title: header.title,
                 orderIndex: header.orderIndex,
                 weekStartDate: nextWeek,
-                weeklyGoal: header.weeklyGoal
+                weeklyGoal: header.weeklyGoal,
+                weeklySetGoal: header.weeklySetGoal
             )
             context.insert(newHeader)
             headerMapping[header.id] = newHeader.id

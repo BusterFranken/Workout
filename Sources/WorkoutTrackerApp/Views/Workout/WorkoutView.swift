@@ -167,8 +167,23 @@ struct WorkoutView: View {
                         doneSection
                     }
                 }
-                .contentShape(Rectangle())
                 .padding()
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .overlay {
+                if isGoalEditMode || isExerciseReorderMode || isSectionReorderMode {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if isGoalEditMode { isGoalEditMode = false }
+                            if isExerciseReorderMode { endExerciseReorderMode() }
+                            if isSectionReorderMode {
+                                isSectionReorderMode = false
+                                activeDragSectionID = nil
+                                hoveredSectionInsertionIndex = nil
+                            }
+                        }
+                }
             }
             .background(Theme.background)
             .toolbar {
@@ -255,20 +270,6 @@ struct WorkoutView: View {
             } message: {
                 Text("This will uncheck all exercises and create a clean week while preserving history.")
             }
-            .onTapGesture {
-                dismissKeyboard()
-                if isGoalEditMode {
-                    isGoalEditMode = false
-                }
-                if isExerciseReorderMode {
-                    endExerciseReorderMode()
-                }
-                if isSectionReorderMode {
-                    isSectionReorderMode = false
-                    activeDragSectionID = nil
-                    hoveredSectionInsertionIndex = nil
-                }
-            }
         }
     }
 
@@ -285,12 +286,6 @@ struct WorkoutView: View {
             .frame(height: 14)
     }
 
-
-    private func dismissKeyboard() {
-        #if os(iOS)
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        #endif
-    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -589,6 +584,7 @@ private struct RenameHeaderSheet: View {
 
     @State private var name: String = ""
     @State private var weeklyGoal: Int = 0
+    @State private var weeklySetGoal: Int = 0
     @State private var showingDeleteWarning = false
     @State private var destinationHeaderID: UUID?
 
@@ -614,6 +610,14 @@ private struct RenameHeaderSheet: View {
                     ))
                     if weeklyGoal > 0 {
                         Stepper("\(weeklyGoal) exercises", value: $weeklyGoal, in: 1...50)
+                    }
+
+                    Toggle("Set volume goal", isOn: Binding(
+                        get: { weeklySetGoal > 0 },
+                        set: { weeklySetGoal = $0 ? max(weeklySetGoal, 1) : 0 }
+                    ))
+                    if weeklySetGoal > 0 {
+                        Stepper("\(weeklySetGoal) sets", value: $weeklySetGoal, in: 1...100)
                     }
                 }
 
@@ -669,6 +673,7 @@ private struct RenameHeaderSheet: View {
                     Button("Save") {
                         repository.renameHeader(header, to: name)
                         repository.updateHeaderGoal(header, goal: weeklyGoal > 0 ? weeklyGoal : nil)
+                        repository.updateHeaderSetGoal(header, setGoal: weeklySetGoal > 0 ? weeklySetGoal : nil)
                         isPresented = false
                     }
                 }
@@ -677,6 +682,7 @@ private struct RenameHeaderSheet: View {
         .onAppear {
             name = header.title
             weeklyGoal = header.weeklyGoal ?? 0
+            weeklySetGoal = header.weeklySetGoal ?? 0
             destinationHeaderID = otherHeaders.first?.id
         }
     }

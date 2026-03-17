@@ -503,10 +503,13 @@ struct TrackingView: View {
     }
 
     private var muscleBalanceCard: some View {
-        let summaries = repository.neglectedMuscleAverages()
+        let result = repository.neglectedMuscleAverages()
+        let summaries = result.summaries
+        let weeksWithData = result.weeksWithData
         let withGoal = summaries.filter { $0.goalTarget != nil }
         let withoutGoal = summaries.filter { $0.goalTarget == nil }
         let hasAnyGoal = !withGoal.isEmpty
+        let maxRawAvg = withoutGoal.map(\.avgSetsPerWeek).max() ?? 1.0
 
         return VStack(alignment: .leading, spacing: 10) {
             Text("Muscle Balance")
@@ -517,51 +520,33 @@ struct TrackingView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
             } else if !hasAnyGoal {
-                // No goals set — show raw averages as horizontal bars
-                Chart(summaries) { item in
-                    BarMark(
-                        x: .value("Avg Sets", item.avgSetsPerWeek),
-                        y: .value("Muscle", item.muscleGroup),
-                        height: .fixed(10)
+                ForEach(Array(summaries.enumerated()), id: \.element.id) { index, item in
+                    muscleBalanceRow(
+                        name: item.muscleGroup,
+                        fill: item.avgSetsPerWeek / max(maxRawAvg, 1.0),
+                        label: String(format: "%.1f sets/wk", item.avgSetsPerWeek),
+                        color: item.isNeglected ? Theme.warning : Theme.accent
                     )
-                    .foregroundStyle(Theme.accent)
-                    .cornerRadius(3)
-                    .annotation(position: .trailing, spacing: 4) {
-                        Text(String(format: "%.1f sets", item.avgSetsPerWeek))
-                            .font(.caption2)
-                            .foregroundStyle(Theme.secondaryText)
-                    }
+                    if index < summaries.count - 1 { Divider() }
                 }
-                .chartXAxisLabel("Avg sets / week (4-week)")
-                .frame(height: CGFloat(max(summaries.count, 1)) * 50)
             } else {
                 Text("vs. Goal")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Theme.primaryText)
 
-                Chart(withGoal) { item in
-                    BarMark(
-                        x: .value("% of Goal", (item.goalPercent ?? 0) * 100),
-                        y: .value("Muscle", item.muscleGroup),
-                        height: .fixed(10)
+                ForEach(Array(withGoal.enumerated()), id: \.element.id) { index, item in
+                    let pct = item.goalPercent ?? 0
+                    muscleBalanceRow(
+                        name: item.muscleGroup,
+                        fill: min(pct, 1.0),
+                        label: String(format: "%.1f / %d sets (%d%%)",
+                                      item.avgSetsPerWeek,
+                                      item.goalTarget ?? 0,
+                                      Int(round(pct * 100))),
+                        color: pct >= 1.0 ? .green : Theme.accent
                     )
-                    .foregroundStyle(Theme.accent)
-                    .cornerRadius(3)
-                    .annotation(position: .trailing, spacing: 4) {
-                        Text(String(format: "%.1f / %d sets (%d%%)",
-                                    item.avgSetsPerWeek,
-                                    item.goalTarget ?? 0,
-                                    Int(round((item.goalPercent ?? 0) * 100))))
-                            .font(.caption2)
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-
-                    RuleMark(x: .value("Goal", 100))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                        .foregroundStyle(Theme.secondaryText)
+                    if index < withGoal.count - 1 { Divider() }
                 }
-                .chartXAxisLabel("% of weekly goal")
-                .frame(height: CGFloat(max(withGoal.count, 1)) * 50)
 
                 if !withoutGoal.isEmpty {
                     Divider()
@@ -571,26 +556,19 @@ struct TrackingView: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Theme.primaryText)
 
-                    Chart(withoutGoal) { item in
-                        BarMark(
-                            x: .value("Avg Sets", item.avgSetsPerWeek),
-                            y: .value("Muscle", item.muscleGroup),
-                            height: .fixed(10)
+                    ForEach(Array(withoutGoal.enumerated()), id: \.element.id) { index, item in
+                        muscleBalanceRow(
+                            name: item.muscleGroup,
+                            fill: item.avgSetsPerWeek / max(maxRawAvg, 1.0),
+                            label: String(format: "%.1f sets/wk", item.avgSetsPerWeek),
+                            color: item.isNeglected ? Theme.warning : Theme.accent
                         )
-                        .foregroundStyle(Theme.accent)
-                        .cornerRadius(3)
-                        .annotation(position: .trailing, spacing: 4) {
-                            Text(String(format: "%.1f sets/wk", item.avgSetsPerWeek))
-                                .font(.caption2)
-                                .foregroundStyle(Theme.secondaryText)
-                        }
+                        if index < withoutGoal.count - 1 { Divider() }
                     }
-                    .chartXAxisLabel("Avg sets / week (4-week)")
-                    .frame(height: CGFloat(max(withoutGoal.count, 1)) * 50)
                 }
             }
 
-            Text("4-week average · lowest 2 highlighted")
+            Text("\(weeksWithData)-week average · lowest 2 highlighted")
                 .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
         }
@@ -598,6 +576,30 @@ struct TrackingView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.clear)
         .appCard()
+    }
+
+    private func muscleBalanceRow(name: String, fill: Double, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            HStack {
+                Text(name)
+                    .font(.caption)
+                Spacer()
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Theme.mutedSurface)
+                    Capsule()
+                        .fill(color)
+                        .frame(width: max(0, geo.size.width * min(fill, 1.0)))
+                }
+            }
+            .frame(height: 6)
+            .clipShape(Capsule())
+        }
     }
 
     private func displayedWeight(_ kg: Double) -> Double {

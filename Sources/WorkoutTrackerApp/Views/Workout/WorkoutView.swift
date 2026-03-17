@@ -413,18 +413,20 @@ struct WorkoutView: View {
             if showDoneSection {
                 ForEach(repository.doneExercises) { row in
                     let isPartial = row.completedAt == nil
-                    Button {
-                        if isPartial {
-                            repository.undoLastCompletion(row)
-                        } else {
-                            repository.toggleExerciseCompleted(row)
-                        }
-                        Haptics.selection()
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: isPartial ? "circle.lefthalf.filled" : "checkmark.circle.fill")
-                                .foregroundStyle(Theme.accent)
+                    HStack(spacing: 10) {
+                        Image(systemName: isPartial ? "circle.lefthalf.filled" : "checkmark.circle.fill")
+                            .foregroundStyle(Theme.accent)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isPartial {
+                                    repository.undoLastCompletion(row)
+                                } else {
+                                    repository.toggleExerciseCompleted(row)
+                                }
+                                Haptics.selection()
+                            }
 
+                        HStack(spacing: 10) {
                             Text(row.name)
                                 .if(!isPartial) { $0.strikethrough() }
                                 .foregroundStyle(isPartial ? Theme.primaryText : Theme.secondaryText)
@@ -444,9 +446,12 @@ struct WorkoutView: View {
                                     .foregroundStyle(Theme.secondaryText)
                             }
                         }
-                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedExerciseForDetails = row
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
                     .contextMenu {
                         Button("View Details") {
                             selectedExerciseForDetails = row

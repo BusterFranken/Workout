@@ -1174,6 +1174,70 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func currentWeekDetailedLog(for exercise: WeeklyExerciseEntity) -> CompletionLogEntity? {
+        completionLogs
+            .filter {
+                $0.weeklyExerciseID == exercise.id
+                && $0.weekStartDate == exercise.weekStartDate
+            }
+            .sorted { $0.completedAt > $1.completedAt }
+            .first
+    }
+
+    func saveDetailedLog(for exercise: WeeklyExerciseEntity, setDetails: [SetDetail]) {
+        let setCount = setDetails.count
+        guard setCount > 0 else { return }
+
+        let totalReps = setDetails.reduce(0) { $0 + $1.reps }
+        let totalVolume = setDetails.reduce(0.0) { acc, set in
+            acc + Double(set.reps) * (set.weightKg ?? 0)
+        }
+        let sumReps = setDetails.filter { $0.weightKg != nil }.reduce(0) { $0 + $1.reps }
+
+        let avgReps = Int(round(Double(totalReps) / Double(setCount)))
+        let avgWeight: Double? = sumReps > 0 ? totalVolume / Double(sumReps) : nil
+        let load: Double? = totalVolume > 0 ? totalVolume : nil
+        let json = CompletionLogEntity.encodeSetDetails(setDetails)
+
+        if let existing = currentWeekDetailedLog(for: exercise) {
+            existing.setsSnapshot = setCount
+            existing.repsSnapshot = avgReps
+            existing.weightKgSnapshot = avgWeight
+            existing.loadSnapshot = load
+            existing.setDetailsJSON = json
+            existing.completedAt = .now
+        } else {
+            let count = completionCount(for: exercise)
+
+            context.insert(
+                CompletionLogEntity(
+                    weekStartDate: exercise.weekStartDate,
+                    weeklyExerciseID: exercise.id,
+                    exerciseID: exercise.exerciseID,
+                    nameSnapshot: exercise.name,
+                    muscleGroupID: exercise.muscleGroupID,
+                    muscleGroupName: exercise.muscleGroupName,
+                    secondaryMuscleGroupsRaw: exercise.secondaryMuscleGroupsRaw,
+                    completedAt: .now,
+                    setsSnapshot: setCount,
+                    repsSnapshot: avgReps,
+                    secondsSnapshot: nil,
+                    weightKgSnapshot: avgWeight,
+                    loadSnapshot: load,
+                    categoryRaw: exercise.categoryRaw,
+                    subMuscleNameSnapshot: exercise.subMuscleName,
+                    setDetailsJSON: json
+                )
+            )
+
+            if count + 1 >= exercise.weeklyTarget {
+                exercise.completedAt = .now
+            }
+        }
+
+        saveAndRefresh()
+    }
+
     func simulateActivityHistory() {
         guard !activeWeeklyExercises.isEmpty else { return }
         guard !hasSimulatedActivity else { return }
@@ -2588,7 +2652,8 @@ final class WorkoutRepository: ObservableObject {
               let kg = exercise.weightKg else {
             return nil
         }
-        return Double(reps) * kg
+        let sets = Double(exercise.sets ?? 1)
+        return sets * Double(reps) * kg
     }
 
     private func simulatedTrainingChance(for weekday: Int) -> Double {

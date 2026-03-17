@@ -1,12 +1,21 @@
 import Charts
 import SwiftUI
 
+private struct SetRowState: Identifiable {
+    let id = UUID()
+    var repsText: String
+    var weightText: String
+}
+
 struct ExerciseDetailSheet: View {
     @EnvironmentObject private var repository: WorkoutRepository
 
     let exercise: WeeklyExerciseEntity
     @State private var showingEditor = false
     @State private var selectedImage: IdentifiableImageData?
+    @State private var detailedLogExpanded = true
+    @State private var setRows: [SetRowState] = []
+    @State private var hasLoadedSetRows = false
     private let chartScrollThreshold = 10
     private let chartPointWidth: CGFloat = 36
 
@@ -52,6 +61,10 @@ struct ExerciseDetailSheet: View {
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                    }
+
+                    if exercise.category == .exercise {
+                        detailedLogCard
                     }
 
                     if logs.isEmpty {
@@ -226,6 +239,11 @@ struct ExerciseDetailSheet: View {
                 .padding()
             }
             .background(Theme.background)
+            .onAppear {
+                if !hasLoadedSetRows && exercise.category == .exercise {
+                    loadSetRows()
+                }
+            }
             .navigationTitle("Exercise")
             .sheet(isPresented: $showingEditor) {
                 ExerciseEditorSheet(isPresented: $showingEditor, exercise: exercise)
@@ -311,11 +329,183 @@ struct ExerciseDetailSheet: View {
         let padding = max(span * 0.1, 0.5)
         return (minValue - padding)...(maxValue + padding)
     }
+
+    // MARK: - Detailed Log
+
+    private var detailedLogCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    detailedLogExpanded.toggle()
+                }
+                if detailedLogExpanded && !hasLoadedSetRows {
+                    loadSetRows()
+                }
+            } label: {
+                HStack {
+                    Text("Detailed Log")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primaryText)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .rotationEffect(.degrees(detailedLogExpanded ? 90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding()
+
+            if detailedLogExpanded {
+                VStack(spacing: 12) {
+                    Stepper("Sets: \(setRows.count)", onIncrement: {
+                        let defaultReps = exercise.reps ?? 10
+                        let defaultWeight = displayedWeightString(from: exercise.weightKg)
+                        setRows.append(SetRowState(repsText: "\(defaultReps)", weightText: defaultWeight))
+                    }, onDecrement: {
+                        guard setRows.count > 1 else { return }
+                        setRows.removeLast()
+                    })
+                    .font(.subheadline.weight(.medium))
+
+                    HStack(spacing: 0) {
+                        Text("Set")
+                            .frame(width: 36, alignment: .leading)
+                        Text("Reps")
+                            .frame(maxWidth: .infinity)
+                        Text("Weight (\(repository.unitSystem.title))")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.secondaryText)
+
+                    ForEach(Array(setRows.enumerated()), id: \.element.id) { index, _ in
+                        HStack(spacing: 8) {
+                            Text("\(index + 1)")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(Theme.secondaryText)
+                                .frame(width: 28, alignment: .center)
+
+                            HStack(spacing: 0) {
+                                TextField("0", text: $setRows[index].repsText)
+                                    .decimalPadKeyboardIfAvailable()
+                                    .multilineTextAlignment(.center)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                Text("r")
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    .foregroundStyle(Theme.secondaryText)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .fill(Theme.mutedSurface)
+                            )
+
+                            HStack(spacing: 0) {
+                                TextField("BW", text: $setRows[index].weightText)
+                                    .numbersAndPunctuationKeyboardIfAvailable()
+                                    .multilineTextAlignment(.center)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                Text(repository.unitSystem.title)
+                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    .foregroundStyle(Theme.secondaryText)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .fill(Theme.mutedSurface)
+                            )
+                        }
+                    }
+
+                    Button {
+                        saveDetailedLog()
+                    } label: {
+                        Text("Save Log")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
+                }
+                .padding([.horizontal, .bottom])
+            }
+        }
+        .background(Color.clear)
+        .appCard()
+    }
+
+    private func loadSetRows() {
+        hasLoadedSetRows = true
+
+        if let log = repository.currentWeekDetailedLog(for: exercise),
+           let details = log.setDetails {
+            setRows = details.map { detail in
+                SetRowState(
+                    repsText: "\(detail.reps)",
+                    weightText: displayedWeightString(from: detail.weightKg)
+                )
+            }
+            return
+        }
+
+        let numSets = exercise.sets ?? 3
+        let defaultReps = exercise.reps ?? 10
+        let defaultWeight = displayedWeightString(from: exercise.weightKg)
+        setRows = (0..<numSets).map { _ in
+            SetRowState(repsText: "\(defaultReps)", weightText: defaultWeight)
+        }
+    }
+
+    private func saveDetailedLog() {
+        let details = setRows.compactMap { row -> SetDetail? in
+            guard let reps = Int(row.repsText.filter { $0.isNumber }), reps > 0 else { return nil }
+            let weightKg = Formatting.parseWeightEntry(row.weightText, unit: repository.unitSystem)
+            return SetDetail(reps: reps, weightKg: weightKg)
+        }
+        guard !details.isEmpty else { return }
+        repository.saveDetailedLog(for: exercise, setDetails: details)
+    }
+
+    private func displayedWeightString(from kg: Double?) -> String {
+        guard let kg, kg > 0 else { return "" }
+        switch repository.unitSystem {
+        case .kg:
+            return kg.rounded() == kg ? "\(Int(kg))" : String(format: "%.1f", kg)
+        case .lb:
+            let lb = kg * 2.2046226218
+            return lb.rounded() == lb ? "\(Int(lb))" : String(format: "%.1f", lb)
+        }
+    }
 }
 
 private struct IdentifiableImageData: Identifiable {
     let id = UUID()
     let data: Data
+}
+
+private extension View {
+    @ViewBuilder
+    func numbersAndPunctuationKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.numbersAndPunctuation)
+        #else
+        self
+        #endif
+    }
+
+    @ViewBuilder
+    func decimalPadKeyboardIfAvailable() -> some View {
+        #if os(iOS)
+        self.keyboardType(.decimalPad)
+        #else
+        self
+        #endif
+    }
 }
 
 private struct ScrollableChartContainer<Content: View>: View {

@@ -6,6 +6,13 @@
 import Foundation
 import SwiftData
 
+struct SetDetail: Codable, Identifiable {
+    var id = UUID()
+    var reps: Int
+    var weightKg: Double?
+    enum CodingKeys: String, CodingKey { case reps, weightKg }
+}
+
 enum ExerciseCategory: String, Codable, CaseIterable {
     case exercise = "exercise"
     case stretch = "stretch"
@@ -487,6 +494,7 @@ final class CompletionLogEntity {
     var distanceKmSnapshot: Double?
     var heartRateTargetSnapshot: Int?
     var subMuscleNameSnapshot: String?
+    var setDetailsJSON: String?
 
     init(
         id: UUID = UUID(),
@@ -510,7 +518,8 @@ final class CompletionLogEntity {
         inclinePercentSnapshot: Double? = nil,
         distanceKmSnapshot: Double? = nil,
         heartRateTargetSnapshot: Int? = nil,
-        subMuscleNameSnapshot: String? = nil
+        subMuscleNameSnapshot: String? = nil,
+        setDetailsJSON: String? = nil
     ) {
         self.id = id
         self.weekStartDate = weekStartDate
@@ -534,10 +543,21 @@ final class CompletionLogEntity {
         self.distanceKmSnapshot = distanceKmSnapshot
         self.heartRateTargetSnapshot = heartRateTargetSnapshot
         self.subMuscleNameSnapshot = subMuscleNameSnapshot
+        self.setDetailsJSON = setDetailsJSON
     }
 
     var category: ExerciseCategory {
         ExerciseCategory(rawValue: categoryRaw) ?? .exercise
+    }
+
+    var setDetails: [SetDetail]? {
+        guard let json = setDetailsJSON, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode([SetDetail].self, from: data)
+    }
+
+    static func encodeSetDetails(_ details: [SetDetail]) -> String? {
+        guard let data = try? JSONEncoder().encode(details) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
 

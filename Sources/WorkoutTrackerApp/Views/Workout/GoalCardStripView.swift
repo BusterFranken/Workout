@@ -249,6 +249,17 @@ private enum GoalCategory: String, CaseIterable {
         case .reps: return "Reps"
         }
     }
+
+    init?(metricTypeRaw: String) {
+        switch metricTypeRaw {
+        case GoalMetricType.totalSets.rawValue, GoalMetricType.muscleGroupSets.rawValue: self = .sets
+        case GoalMetricType.exercisesDone.rawValue, GoalMetricType.muscleGroupExercises.rawValue: self = .exercises
+        case GoalMetricType.workoutDays.rawValue: self = .workoutDays
+        case GoalMetricType.totalVolume.rawValue, GoalMetricType.muscleGroupVolume.rawValue: self = .volume
+        case GoalMetricType.totalReps.rawValue, GoalMetricType.muscleGroupReps.rawValue: self = .reps
+        default: return nil
+        }
+    }
 }
 
 private struct AddGoalSheet: View {
@@ -370,21 +381,82 @@ private struct EditGoalSheet: View {
     let card: GoalCardEntity
     @Binding var editingCard: GoalCardEntity?
 
+    @State private var category: GoalCategory
     @State private var target: Int
+    @State private var selectedMuscleGroupID: UUID?
+    @State private var selectedSubMuscle: String?
     @State private var showingDeleteConfirmation = false
 
     init(card: GoalCardEntity, editingCard: Binding<GoalCardEntity?>) {
         self.card = card
         self._editingCard = editingCard
+        self._category = State(initialValue: GoalCategory(metricTypeRaw: card.metricTypeRaw) ?? .sets)
         self._target = State(initialValue: card.targetValue)
+        self._selectedMuscleGroupID = State(initialValue: card.muscleGroupID)
+        self._selectedSubMuscle = State(initialValue: card.subMuscleName)
+    }
+
+    private var targetRange: ClosedRange<Int> {
+        switch category {
+        case .volume, .reps: return 1...99999
+        default: return 1...300
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Metric") {
+                    Picker("Category", selection: $category) {
+                        ForEach(GoalCategory.allCases, id: \.self) { cat in
+                            Text(cat.displayName).tag(cat)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: category) { _, _ in
+                        selectedMuscleGroupID = nil
+                        selectedSubMuscle = nil
+                        target = category.defaultTarget
+                    }
+
+                    if category.supportsMuscleGroup {
+                        Picker("Scope", selection: $selectedMuscleGroupID) {
+                            Text("All muscle groups").tag(Optional<UUID>.none)
+                            ForEach(repository.muscleGroups.filter { !$0.isArchived }, id: \.id) { group in
+                                Text(group.name).tag(Optional(group.id))
+                            }
+                        }
+                        .onChange(of: selectedMuscleGroupID) { _, _ in
+                            selectedSubMuscle = nil
+                        }
+
+                        if let groupID = selectedMuscleGroupID,
+                           let groupName = repository.muscleGroups.first(where: { $0.id == groupID })?.name,
+                           let subMuscles = SeedCatalog.subMuscles[groupName], !subMuscles.isEmpty {
+                            Picker("Muscle", selection: $selectedSubMuscle) {
+                                Text("Any / All").tag(Optional<String>.none)
+                                ForEach(subMuscles, id: \.self) { sub in
+                                    Text(sub).tag(Optional(sub))
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Section("Target") {
-                    Stepper(value: $target, in: 1...300) {
-                        Text("\(target)")
+                    if category == .volume || category == .reps {
+                        HStack {
+                            Text("Target")
+                            Spacer()
+                            TextField("Target", value: $target, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
+                    } else {
+                        Stepper(value: $target, in: targetRange) {
+                            Text("\(target)")
+                        }
                     }
                 }
 
@@ -403,7 +475,20 @@ private struct EditGoalSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        repository.updateGoalTarget(card, target: target)
+                        let hasMuscleGroup = selectedMuscleGroupID != nil
+                        let metric = category.metricType(forMuscleGroup: hasMuscleGroup)
+
+                        let title: String
+                        if hasMuscleGroup,
+                           let id = selectedMuscleGroupID,
+                           let group = repository.muscleGroups.first(where: { $0.id == id }) {
+                            let scopeName = selectedSubMuscle ?? group.name
+                            title = "\(scopeName) \(category.suffix)"
+                        } else {
+                            title = category.displayName
+                        }
+
+                        repository.updateGoal(card, metric: metric, target: target, title: title, muscleGroupID: selectedMuscleGroupID, subMuscleName: selectedSubMuscle)
                         editingCard = nil
                     }
                 }

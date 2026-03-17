@@ -1402,6 +1402,15 @@ final class WorkoutRepository: ObservableObject {
         saveAndRefresh()
     }
 
+    func updateGoal(_ card: GoalCardEntity, metric: GoalMetricType, target: Int, title: String, muscleGroupID: UUID?, subMuscleName: String?) {
+        card.metricTypeRaw = metric.rawValue
+        card.targetValue = target
+        card.title = title
+        card.muscleGroupID = muscleGroupID
+        card.subMuscleName = subMuscleName
+        saveAndRefresh()
+    }
+
     func archiveGoal(_ card: GoalCardEntity) {
         guard !card.isSystem else { return }
         card.isArchived = true

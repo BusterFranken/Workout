@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum AccentColorOption: String, CaseIterable, Identifiable {
     case pink
@@ -52,18 +55,53 @@ extension Notification.Name {
 }
 
 enum Theme {
-    static let background = Color(red: 0.96, green: 0.97, blue: 0.98)
-    static let surface = Color.white
-    static let mutedSurface = Color(red: 0.92, green: 0.94, blue: 0.96)
-    static let primaryText = Color.black
-    static let secondaryText = Color(red: 0.35, green: 0.38, blue: 0.43)
+    // MARK: - Adaptive palette
+
+    static let background = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
+            : UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1)
+    })
+
+    static let surface = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.17, green: 0.17, blue: 0.19, alpha: 1)
+            : UIColor.white
+    })
+
+    static let mutedSurface = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.22, green: 0.22, blue: 0.24, alpha: 1)
+            : UIColor(red: 0.92, green: 0.94, blue: 0.96, alpha: 1)
+    })
+
+    static let primaryText = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark ? .white : .black
+    })
+
+    static let secondaryText = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor(red: 0.60, green: 0.62, blue: 0.67, alpha: 1)
+            : UIColor(red: 0.35, green: 0.38, blue: 0.43, alpha: 1)
+    })
+
     static let defaultAccent = Color(red: 0.92, green: 0.23, blue: 0.54)
     static var accent: Color {
         accentOption.color
     }
     static let warning = Color(red: 0.84, green: 0.24, blue: 0.24)
-    static let border = Color.black.opacity(0.06)
-    static let shadow = Color.black.opacity(0.06)
+
+    static let border = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor.white.withAlphaComponent(0.08)
+            : UIColor.black.withAlphaComponent(0.06)
+    })
+
+    static let shadow = Color(UIColor { tc in
+        tc.userInterfaceStyle == .dark
+            ? UIColor.black.withAlphaComponent(0.4)
+            : UIColor.black.withAlphaComponent(0.06)
+    })
 
     private static let accentOptionKey = "accentOptionRaw"
     private static let customAccentRedKey = "customAccentRed"
@@ -145,9 +183,12 @@ extension Font {
     static let monoMetric = Font.system(size: 26, weight: .bold, design: .monospaced)
 }
 
-extension View {
-    func appCard(cornerRadius: CGFloat = 16) -> some View {
-        self
+struct AppCardModifier: ViewModifier {
+    var cornerRadius: CGFloat = 16
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Theme.surface)
@@ -156,6 +197,16 @@ extension View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(Theme.border, lineWidth: 1)
             )
-            .shadow(color: Theme.shadow, radius: 8, y: 3)
+            .shadow(
+                color: colorScheme == .dark ? .clear : Theme.shadow,
+                radius: 8,
+                y: 3
+            )
+    }
+}
+
+extension View {
+    func appCard(cornerRadius: CGFloat = 16) -> some View {
+        modifier(AppCardModifier(cornerRadius: cornerRadius))
     }
 }

@@ -320,7 +320,7 @@ private struct WorkoutsLogoMark: View {
                 .fill(Theme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Theme.primaryText.opacity(0.1), lineWidth: 1)
+                        .stroke(Theme.border, lineWidth: 1)
                 )
 
             VStack(spacing: 4) {

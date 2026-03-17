@@ -98,7 +98,7 @@ struct ExerciseRowView: View {
                         .foregroundStyle(.white)
                         .frame(width: trailingRevealWidth / 2)
                         .frame(maxHeight: .infinity)
-                        .background(Color.blue)
+                        .background(Theme.accent)
                     }
                     .buttonStyle(.plain)
 
@@ -164,7 +164,7 @@ struct ExerciseRowView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Theme.primaryText.opacity(0.06), lineWidth: 1)
+                .stroke(Theme.border, lineWidth: 1)
         )
         .scaleEffect(isActiveDragItem ? 1.02 : 1)
         .shadow(

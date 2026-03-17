@@ -143,13 +143,13 @@ struct ExerciseDetailSheet: View {
                                         y: .value("Load", point.value)
                                     )
                                     .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Color.black)
+                                    .foregroundStyle(Theme.primaryText)
 
                                     PointMark(
                                         x: .value("Date", point.date),
                                         y: .value("Load", point.value)
                                     )
-                                    .foregroundStyle(Color.black)
+                                    .foregroundStyle(Theme.primaryText)
                                 }
                                 .chartXAxis {
                                     AxisMarks(values: loadHistory.map(\.date)) { value in

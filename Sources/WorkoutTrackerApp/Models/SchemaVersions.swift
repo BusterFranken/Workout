@@ -387,15 +387,59 @@ enum SchemaV8: VersionedSchema {
     }
 }
 
+// MARK: - V9 (adds showSuggestedWorkout to AppSettingsEntity)
+
+enum SchemaV9: VersionedSchema {
+    static var versionIdentifier = Schema.Version(9, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
+// MARK: - V10 (adds suggestedStrengthCount, suggestedStretchCount, suggestedCardioCount to AppSettingsEntity)
+
+enum SchemaV10: VersionedSchema {
+    static var versionIdentifier = Schema.Version(10, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            MuscleGroupEntity.self,
+            ExerciseEntity.self,
+            WorkoutTemplateEntity.self,
+            WorkoutTemplateExerciseEntity.self,
+            WeeklyExerciseEntity.self,
+            CompletionLogEntity.self,
+            GoalCardEntity.self,
+            BodyMetricEntryEntity.self,
+            PRRecordEntity.self,
+            AppSettingsEntity.self,
+            SectionHeaderEntity.self
+        ]
+    }
+}
+
 // MARK: - Migration Plan
 
 enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8, migrateV8toV9, migrateV9toV10]
     }
 
     static let migrateV1toV2 = MigrationStage.lightweight(
@@ -431,5 +475,15 @@ enum WorkoutMigrationPlan: SchemaMigrationPlan {
     static let migrateV7toV8 = MigrationStage.lightweight(
         fromVersion: SchemaV7.self,
         toVersion: SchemaV8.self
+    )
+
+    static let migrateV8toV9 = MigrationStage.lightweight(
+        fromVersion: SchemaV8.self,
+        toVersion: SchemaV9.self
+    )
+
+    static let migrateV9toV10 = MigrationStage.lightweight(
+        fromVersion: SchemaV9.self,
+        toVersion: SchemaV10.self
     )
 }

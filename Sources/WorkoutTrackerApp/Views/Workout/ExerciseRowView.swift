@@ -98,7 +98,7 @@ struct ExerciseRowView: View {
                         .foregroundStyle(.white)
                         .frame(width: trailingRevealWidth / 2)
                         .frame(maxHeight: .infinity)
-                        .background(Theme.accent)
+                        .background(Color.blue)
                     }
                     .buttonStyle(.plain)
 

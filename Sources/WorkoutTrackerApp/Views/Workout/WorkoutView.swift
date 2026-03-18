@@ -50,6 +50,18 @@ struct WorkoutView: View {
                         }
                     }
 
+                    if repository.showSuggestedWorkout {
+                        SuggestedWorkoutView(
+                            onRowEdit: { selectedExerciseForEditor = $0 },
+                            onRowDetail: { selectedExerciseForDetails = $0 },
+                            onRowDelete: { repository.removeExerciseFromWeek($0) },
+                            onMarkDone: { exercise in
+                                repository.toggleExerciseCompleted(exercise)
+                                Haptics.selection()
+                            }
+                        )
+                    }
+
                     if repository.workoutSections.isEmpty && repository.activeWeeklyExercises.isEmpty {
                         emptyStateCard
                     } else {
@@ -334,6 +346,17 @@ struct WorkoutView: View {
                             Text(mode.title)
                         }
                     }
+                }
+            }
+
+            Button {
+                repository.updateShowSuggestedWorkout(!repository.showSuggestedWorkout)
+                Haptics.selection()
+            } label: {
+                if repository.showSuggestedWorkout {
+                    Label("Suggest Today's Workout", systemImage: "checkmark")
+                } else {
+                    Text("Suggest Today's Workout")
                 }
             }
 

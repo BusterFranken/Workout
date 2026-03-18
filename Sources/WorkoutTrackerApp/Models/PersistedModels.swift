@@ -699,6 +699,10 @@ final class AppSettingsEntity {
     var themePreferenceRaw: String
     var trackingWidgetOrderRaw: String
     var seedVersion: Int
+    var showSuggestedWorkout: Bool
+    var suggestedStrengthCount: Int?
+    var suggestedStretchCount: Int?
+    var suggestedCardioCount: Int?
 
     init(
         id: UUID = UUID(),
@@ -709,7 +713,11 @@ final class AppSettingsEntity {
         unitSystemRaw: String,
         themePreferenceRaw: String,
         trackingWidgetOrderRaw: String,
-        seedVersion: Int
+        seedVersion: Int,
+        showSuggestedWorkout: Bool = true,
+        suggestedStrengthCount: Int? = nil,
+        suggestedStretchCount: Int? = nil,
+        suggestedCardioCount: Int? = nil
     ) {
         self.id = id
         self.activeWeekStartDate = activeWeekStartDate
@@ -720,6 +728,10 @@ final class AppSettingsEntity {
         self.themePreferenceRaw = themePreferenceRaw
         self.trackingWidgetOrderRaw = trackingWidgetOrderRaw
         self.seedVersion = seedVersion
+        self.showSuggestedWorkout = showSuggestedWorkout
+        self.suggestedStrengthCount = suggestedStrengthCount
+        self.suggestedStretchCount = suggestedStretchCount
+        self.suggestedCardioCount = suggestedCardioCount
     }
 
     var workoutViewMode: WorkoutViewMode {

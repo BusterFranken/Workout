@@ -131,6 +131,7 @@ final class WorkoutRepository: ObservableObject {
     @Published private(set) var bodyMetricEntries: [BodyMetricEntryEntity] = []
     @Published private(set) var prRecords: [PRRecordEntity] = []
     @Published private(set) var sectionHeaders: [SectionHeaderEntity] = []
+    @Published private(set) var cachedSuggestedExercises: [WeeklyExerciseEntity] = []
     @Published var errorMessage: String?
     @Published var collapsedSectionIDs: Set<String> = []
     @Published var activeHaneyQuote: HaneyQuote?
@@ -183,6 +184,28 @@ final class WorkoutRepository: ObservableObject {
 
     var themePreference: AppThemePreference {
         settings?.themePreference ?? .system
+    }
+
+    var showSuggestedWorkout: Bool {
+        settings?.showSuggestedWorkout ?? true
+    }
+
+    var suggestedStrengthCount: Int {
+        settings?.suggestedStrengthCount ?? 3
+    }
+
+    var suggestedStretchCount: Int {
+        settings?.suggestedStretchCount ?? 1
+    }
+
+    var suggestedCardioCount: Int {
+        settings?.suggestedCardioCount ?? 1
+    }
+
+    var allSuggestedExercisesDone: Bool {
+        !cachedSuggestedExercises.isEmpty && cachedSuggestedExercises.allSatisfy {
+            $0.completedAt != nil || hasCompletionToday(for: $0)
+        }
     }
 
     func isSectionCollapsed(_ sectionID: String) -> Bool {
@@ -541,6 +564,143 @@ final class WorkoutRepository: ObservableObject {
         return MuscleBalanceResult(summaries: results, weeksWithData: max(weeksWithData, 1))
     }
 
+    func refreshSuggestedWorkout() {
+        let calendar = Calendar.workout
+        let todayKey = calendar.startOfDay(for: Date()).timeIntervalSince1970
+        let storedDate = UserDefaults.standard.double(forKey: "suggestedDate")
+        let storedIDs = UserDefaults.standard.stringArray(forKey: "suggestedExerciseIDs") ?? []
+
+        if storedDate == todayKey && !storedIDs.isEmpty {
+            let idSet = Set(storedIDs.compactMap { UUID(uuidString: $0) })
+            let found = activeWeeklyExercises.filter { idSet.contains($0.id) }
+            if !found.isEmpty {
+                cachedSuggestedExercises = found
+                return
+            }
+        }
+
+        let picked = runSuggestionAlgorithm()
+        cachedSuggestedExercises = picked
+        UserDefaults.standard.set(todayKey, forKey: "suggestedDate")
+        UserDefaults.standard.set(picked.map { $0.id.uuidString }, forKey: "suggestedExerciseIDs")
+    }
+
+    func forceSuggestedRefresh() {
+        UserDefaults.standard.removeObject(forKey: "suggestedDate")
+        refreshSuggestedWorkout()
+    }
+
+    private func runSuggestionAlgorithm() -> [WeeklyExerciseEntity] {
+        let recentMuscles = recentlyTrainedMuscleGroups()
+        let active = activeWeeklyExercises
+
+        let strengthPool = active.filter {
+            $0.completedAt == nil
+            && $0.category == .exercise
+            && !recentMuscles.contains(normalizeGroupName($0.muscleGroupName))
+        }
+        let stretchPool = active.filter { $0.completedAt == nil && $0.category == .stretch }
+        let cardioPool = active.filter { $0.completedAt == nil && $0.category == .cardio }
+
+        let strengthLimit = suggestedStrengthCount
+        let stretchLimit = suggestedStretchCount
+        let cardioLimit = suggestedCardioCount
+
+        var picked: [WeeklyExerciseEntity] = []
+        var usedIDs: Set<UUID> = []
+
+        // Build priority scores: combine weekly exercise-count goals + volume-based priority
+        let volumePriority = neglectedMuscleAverages().summaries
+        let headerGoalCompletion = weeklyExerciseGoalCompletion()
+
+        struct GroupScore: Comparable {
+            let group: String
+            let goalRatio: Double   // lower = more urgent (0 if no goal)
+            let hasGoal: Bool
+            let volumeRank: Int     // lower = more neglected
+
+            static func < (lhs: GroupScore, rhs: GroupScore) -> Bool {
+                if lhs.hasGoal != rhs.hasGoal { return lhs.hasGoal }
+                if lhs.hasGoal && rhs.hasGoal { return lhs.goalRatio < rhs.goalRatio }
+                return lhs.volumeRank < rhs.volumeRank
+            }
+        }
+
+        var scoreMap: [String: GroupScore] = [:]
+        for (rank, summary) in volumePriority.enumerated() {
+            let key = normalizeGroupName(summary.muscleGroup)
+            let goalInfo = headerGoalCompletion[key]
+            scoreMap[key] = GroupScore(
+                group: summary.muscleGroup,
+                goalRatio: goalInfo?.ratio ?? 0,
+                hasGoal: goalInfo != nil,
+                volumeRank: rank
+            )
+        }
+
+        let sortedGroups = scoreMap.values.sorted()
+
+        // Pick strength exercises by priority
+        for score in sortedGroups where picked.count < strengthLimit {
+            let groupKey = normalizeGroupName(score.group)
+            if recentMuscles.contains(groupKey) { continue }
+            if let match = strengthPool
+                .filter({ normalizeGroupName($0.muscleGroupName) == groupKey && !usedIDs.contains($0.id) })
+                .sorted(by: { $0.orderIndex < $1.orderIndex })
+                .first {
+                picked.append(match)
+                usedIDs.insert(match.id)
+            }
+        }
+
+        // Fill remaining strength slots
+        if picked.count < strengthLimit {
+            let remaining = strengthPool
+                .filter { !usedIDs.contains($0.id) }
+                .sorted { $0.orderIndex < $1.orderIndex }
+            for ex in remaining where picked.count < strengthLimit {
+                picked.append(ex)
+                usedIDs.insert(ex.id)
+            }
+        }
+
+        // Pick stretches
+        for stretch in stretchPool.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            guard picked.filter({ $0.category == .stretch }).count < stretchLimit else { break }
+            picked.append(stretch)
+        }
+
+        // Pick cardio
+        for cardio in cardioPool.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            guard picked.filter({ $0.category == .cardio }).count < cardioLimit else { break }
+            picked.append(cardio)
+        }
+
+        return picked
+    }
+
+    private func weeklyExerciseGoalCompletion() -> [String: (done: Int, goal: Int, ratio: Double)] {
+        var result: [String: (done: Int, goal: Int, ratio: Double)] = [:]
+        for header in activeWeeklyHeaders {
+            guard let goal = header.weeklyGoal, goal > 0 else { continue }
+            let key = normalizeGroupName(header.title)
+            let exercises = activeWeeklyExercises.filter { $0.headerID == header.id }
+            let done = exercises.filter { $0.completedAt != nil }.count
+            let ratio = Double(done) / Double(goal)
+            result[key] = (done, goal, ratio)
+        }
+        return result
+    }
+
+    private func recentlyTrainedMuscleGroups() -> Set<String> {
+        let calendar = Calendar.workout
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+        let recentLogs = completionLogs.filter {
+            $0.categoryRaw == "exercise" && $0.completedAt >= twoDaysAgo
+        }
+        return Set(recentLogs.map { normalizeGroupName($0.muscleGroupName) })
+    }
+
     func progressionLogs(for exercise: WeeklyExerciseEntity) -> [CompletionLogEntity] {
         completionLogs
             .filter {
@@ -669,6 +829,29 @@ final class WorkoutRepository: ObservableObject {
     func updateThemePreference(_ preference: AppThemePreference) {
         settings?.themePreference = preference
         saveAndRefresh()
+    }
+
+    func updateShowSuggestedWorkout(_ value: Bool) {
+        settings?.showSuggestedWorkout = value
+        saveAndRefresh()
+    }
+
+    func updateSuggestedStrengthCount(_ value: Int) {
+        settings?.suggestedStrengthCount = value
+        saveAndRefresh()
+        forceSuggestedRefresh()
+    }
+
+    func updateSuggestedStretchCount(_ value: Int) {
+        settings?.suggestedStretchCount = value
+        saveAndRefresh()
+        forceSuggestedRefresh()
+    }
+
+    func updateSuggestedCardioCount(_ value: Int) {
+        settings?.suggestedCardioCount = value
+        saveAndRefresh()
+        forceSuggestedRefresh()
     }
 
     func reorderTrackingWidgets(from source: TrackingWidgetID, to destinationIndex: Int) {
@@ -1087,6 +1270,15 @@ final class WorkoutRepository: ObservableObject {
             $0.weeklyExerciseID == exercise.id
             && $0.weekStartDate == exercise.weekStartDate
         }.count
+    }
+
+    func hasCompletionToday(for exercise: WeeklyExerciseEntity) -> Bool {
+        let today = Date().startOfDayDate()
+        return completionLogs.contains {
+            $0.weeklyExerciseID == exercise.id
+            && $0.weekStartDate == exercise.weekStartDate
+            && $0.completedAt.startOfDayDate() == today
+        }
     }
 
     func toggleExerciseCompleted(_ exercise: WeeklyExerciseEntity) {
@@ -1751,6 +1943,7 @@ final class WorkoutRepository: ObservableObject {
             )
 
             ensureDefaultGoalCard()
+            refreshSuggestedWorkout()
         } catch {
             errorMessage = "Failed to load data: \(error.localizedDescription)"
         }

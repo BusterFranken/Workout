@@ -36,6 +36,7 @@
 		B3C4D5E6F7081920A3B4C5DE /* SchemaVersions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B3C4D5E6F708192A3B4C5D /* SchemaVersions.swift */; };
 		B2D3E4F5A6C7B8190F2E3D4A /* HaneyEasterEgg.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E2F3D4C5B6A7089E1F2D3C /* HaneyEasterEgg.swift */; };
 		D4E5F6A7B8C9DA312B4F5A6C /* HaneyOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9201A3E4F5B /* HaneyOverlayView.swift */; };
+		E5F6A7B8C9DA0123456789AB /* SuggestedWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A7B8C9DA01234567890ABC /* SuggestedWorkoutView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +71,7 @@
 		A2B3C4D5E6F708192A3B4C5D /* SchemaVersions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaVersions.swift; sourceTree = "<group>"; };
 		A1E2F3D4C5B6A7089E1F2D3C /* HaneyEasterEgg.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaneyEasterEgg.swift; sourceTree = "<group>"; };
 		C3D4E5F6A7B8C9201A3E4F5B /* HaneyOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaneyOverlayView.swift; sourceTree = "<group>"; };
+		F6A7B8C9DA01234567890ABC /* SuggestedWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestedWorkoutView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -123,6 +125,7 @@
 				C3D4E5F6A7B8C9201A3E4F5B /* HaneyOverlayView.swift */,
 				19C596837D6112517F93EFF2 /* MuscleGroupSectionView.swift */,
 				ED8A29CD3D97C246893E3508 /* SecondaryMuscleGroupPicker.swift */,
+				F6A7B8C9DA01234567890ABC /* SuggestedWorkoutView.swift */,
 				30383CBEAC1E46BF7ED99F98 /* WorkoutView.swift */,
 			);
 			path = Workout;
@@ -284,6 +287,7 @@
 				4D782C43ECFB58D09E9AE5F5 /* RootTabView.swift in Sources */,
 				D22D101B11C34EEAB1E8B53F /* SecondaryMuscleGroupPicker.swift in Sources */,
 				9EDB5C38F45BFB6283172927 /* SeedCatalog.swift in Sources */,
+				E5F6A7B8C9DA0123456789AB /* SuggestedWorkoutView.swift in Sources */,
 				05DF462F6B2610DB0D905374 /* Theme.swift in Sources */,
 				0BD9EB225635CAC0897B08F7 /* TrackingView.swift in Sources */,
 				3C1621FB6F827925888BE73D /* Wiggle.swift in Sources */,

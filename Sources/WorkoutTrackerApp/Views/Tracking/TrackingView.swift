@@ -15,6 +15,7 @@ struct TrackingView: View {
     @State private var selectedPRItem: SelectedPRItem?
     @State private var showingAddPRTrackerSheet = false
 
+    @State private var muscleTrendPage: Int = 0
     @State private var isReordering = false
     @State private var showingWeighInSheet = false
     @State private var hoveredInsertionIndex: Int?
@@ -190,29 +191,50 @@ struct TrackingView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
             } else {
-                ScrollableChartContainer(
-                    entryCount: uniqueWeeksCount,
-                    threshold: chartScrollThreshold,
-                    pointWidth: chartPointWidth
-                ) {
-                    Chart(points) { point in
-                        LineMark(
-                            x: .value("Week", point.weekStart),
-                            y: .value("Sets", point.sets),
-                            series: .value("Muscle", point.muscleGroup)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                TabView(selection: $muscleTrendPage) {
+                    ScrollableChartContainer(
+                        entryCount: uniqueWeeksCount,
+                        threshold: chartScrollThreshold,
+                        pointWidth: chartPointWidth
+                    ) {
+                        Chart(points) { point in
+                            LineMark(
+                                x: .value("Week", point.weekStart),
+                                y: .value("Sets", point.sets),
+                                series: .value("Muscle", point.muscleGroup)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
 
-                        PointMark(
-                            x: .value("Week", point.weekStart),
-                            y: .value("Sets", point.sets)
-                        )
-                        .symbolSize(26)
-                        .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                            PointMark(
+                                x: .value("Week", point.weekStart),
+                                y: .value("Sets", point.sets)
+                            )
+                            .symbolSize(26)
+                            .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                        }
+                        .frame(height: 210)
                     }
-                    .frame(height: 210)
+                    .tag(0)
+
+                    ScrollableChartContainer(
+                        entryCount: uniqueWeeksCount,
+                        threshold: chartScrollThreshold,
+                        pointWidth: chartPointWidth
+                    ) {
+                        Chart(stackedBarData(from: points, groups: groups)) { point in
+                            BarMark(
+                                x: .value("Week", point.weekStart, unit: .weekOfYear),
+                                y: .value("Sets", point.sets)
+                            )
+                            .foregroundStyle(colors[point.muscleGroup] ?? Theme.accent)
+                        }
+                        .frame(height: 210)
+                    }
+                    .tag(1)
                 }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .frame(height: 240)
 
                 if !groups.isEmpty {
                     let legendColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
@@ -618,6 +640,14 @@ struct TrackingView: View {
         let span = max(maxValue - minValue, 1)
         let padding = max(span * 0.1, 0.5)
         return (minValue - padding)...(maxValue + padding)
+    }
+
+    private func stackedBarData(from points: [MuscleTrendPoint], groups: [String]) -> [MuscleTrendPoint] {
+        let groupOrder = Dictionary(uniqueKeysWithValues: groups.enumerated().map { ($1, $0) })
+        return points.sorted {
+            if $0.weekStart != $1.weekStart { return $0.weekStart < $1.weekStart }
+            return (groupOrder[$0.muscleGroup] ?? 0) < (groupOrder[$1.muscleGroup] ?? 0)
+        }
     }
 
     private func muscleTrendColors(for groups: [String]) -> [String: Color] {

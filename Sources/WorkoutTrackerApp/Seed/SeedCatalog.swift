@@ -14,6 +14,7 @@ struct SeedExercise {
     var weightKg: Double?
     var synonyms: [String]
     var category: ExerciseCategory = .exercise
+    var primarySubMuscleName: String? = nil
 }
 
 struct Gainz3Section {
@@ -95,7 +96,7 @@ enum SeedCatalog {
             legacyID: 3,
             name: "Close grip pull up/chin-up",
             muscleGroup: "Biceps",
-            secondaryMuscleGroups: ["Back"],
+            secondaryMuscleGroups: ["Back (Lats)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -151,7 +152,7 @@ enum SeedCatalog {
             legacyID: 7,
             name: "Skull crusher ez bar",
             muscleGroup: "Triceps",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Chest"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -165,7 +166,7 @@ enum SeedCatalog {
             legacyID: 8,
             name: "Dips / incline dumbel press",
             muscleGroup: "Triceps",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Chest", "Delts (Front delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -207,7 +208,7 @@ enum SeedCatalog {
             legacyID: 11,
             name: "Bench press",
             muscleGroup: "Chest",
-            secondaryMuscleGroups: ["Triceps"],
+            secondaryMuscleGroups: ["Triceps", "Delts (Front delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -215,13 +216,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 70,
-            synonyms: ["chest press"]
+            synonyms: ["chest press"],
+            primarySubMuscleName: "Mid"
         ),
         .init(
             legacyID: 12,
             name: "Bench press (incline)",
             muscleGroup: "Chest",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Triceps", "Delts (Front delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -229,7 +231,8 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 60,
-            synonyms: ["chest press"]
+            synonyms: ["chest press"],
+            primarySubMuscleName: "Upper"
         ),
         .init(
             legacyID: 13,
@@ -243,13 +246,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 18,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Mid"
         ),
         .init(
             legacyID: 14,
             name: "Landmine press (scapula)",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Delts", "Chest"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -257,13 +261,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 40,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper back"
         ),
         .init(
             legacyID: 15,
             name: "Face pulls",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Delts (Rear delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -271,13 +276,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 20,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper back"
         ),
         .init(
             legacyID: 16,
             name: "Deadlift (erectors)",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Legs (Hamstrings)", "Legs (Glutes)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -285,13 +291,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 100,
-            synonyms: ["pull from floor", "hip hinge"]
+            synonyms: ["pull from floor", "hip hinge"],
+            primarySubMuscleName: "Lower back"
         ),
         .init(
             legacyID: 17,
             name: "Pull ups wide grip",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Biceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -299,13 +306,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: nil,
-            synonyms: ["chin up"]
+            synonyms: ["chin up"],
+            primarySubMuscleName: "Lats"
         ),
         .init(
             legacyID: 18,
             name: "Cable Y Raise (lower traps)",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Delts (Rear delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -313,13 +321,14 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: 35,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Traps"
         ),
         .init(
             legacyID: 19,
             name: "Rows",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Biceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -327,13 +336,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 40,
-            synonyms: ["rowing"]
+            synonyms: ["rowing"],
+            primarySubMuscleName: "Lats"
         ),
         .init(
             legacyID: 20,
             name: "Weighted pull ups",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Biceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -341,13 +351,14 @@ enum SeedCatalog {
             reps: 7,
             seconds: nil,
             weightKg: 12,
-            synonyms: ["chin up"]
+            synonyms: ["chin up"],
+            primarySubMuscleName: "Lats"
         ),
         .init(
             legacyID: 21,
             name: "Hyperextension low (erectors low)",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Legs (Hamstrings)", "Legs (Glutes)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -355,7 +366,8 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Lower back"
         ),
         .init(
             legacyID: 22,
@@ -369,7 +381,8 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: 100,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper back"
         ),
         .init(
             legacyID: 23,
@@ -389,7 +402,7 @@ enum SeedCatalog {
             legacyID: 24,
             name: "Lateral raises (side delt) / incl. Y raises (dumbels, thumb forward) 5x10x10kg",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Neck"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -397,13 +410,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 10,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Side delt"
         ),
         .init(
             legacyID: 25,
             name: "Shoulder press / dumbell (front/side delt) below chin - 5x 10x 2x18kg",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Triceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -411,13 +425,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 18,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Front delt"
         ),
         .init(
             legacyID: 26,
             name: "Arnold press 10kg",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Triceps"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -425,13 +440,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 10,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Front delt"
         ),
         .init(
             legacyID: 27,
             name: "Shoulder cable stretch/cross over 6kg 10x 5x",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Neck"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -439,13 +455,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 6,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Side delt"
         ),
         .init(
             legacyID: 28,
             name: "Lateral raises (cable, out and back) (rear delts) 5x10x5kg",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Back (Upper back)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -453,7 +470,8 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 5,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Rear delt"
         ),
         .init(
             legacyID: 29,
@@ -473,7 +491,7 @@ enum SeedCatalog {
             legacyID: 30,
             name: "Rear delt machine flies",
             muscleGroup: "Delts",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Back (Upper back)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -481,13 +499,14 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Rear delt"
         ),
         .init(
             legacyID: 31,
             name: "Seated cable deadlift",
             muscleGroup: "Legs",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Back (Lower back)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -495,7 +514,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: ["pull from floor", "hip hinge"]
+            synonyms: ["pull from floor", "hip hinge"],
+            primarySubMuscleName: "Hamstrings"
         ),
         .init(
             legacyID: 32,
@@ -509,7 +529,8 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 115,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Quads"
         ),
         .init(
             legacyID: 33,
@@ -523,7 +544,8 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 67,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Hamstrings"
         ),
         .init(
             legacyID: 34,
@@ -537,13 +559,14 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 70,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Quads"
         ),
         .init(
             legacyID: 35,
             name: "Squats (deep)- 5x 8x 80kg",
             muscleGroup: "Legs",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Back (Lower back)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -551,13 +574,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 80,
-            synonyms: ["leg squat"]
+            synonyms: ["leg squat"],
+            primarySubMuscleName: "Quads"
         ),
         .init(
             legacyID: 36,
             name: "Zercher squad 40kg 12x5x",
             muscleGroup: "Legs",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Abs"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -565,7 +589,8 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: 40,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Quads"
         ),
         .init(
             legacyID: 37,
@@ -579,13 +604,14 @@ enum SeedCatalog {
             reps: 8,
             seconds: nil,
             weightKg: 97,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Calves"
         ),
         .init(
             legacyID: 38,
             name: "Lounges - 5x 12st 60kg",
             muscleGroup: "Legs",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Legs (Glutes)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -593,7 +619,8 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: 60,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Quads"
         ),
         .init(
             legacyID: 39,
@@ -607,7 +634,8 @@ enum SeedCatalog {
             reps: 20,
             seconds: nil,
             weightKg: 6,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Wrist extensors"
         ),
         .init(
             legacyID: 40,
@@ -621,7 +649,8 @@ enum SeedCatalog {
             reps: 20,
             seconds: nil,
             weightKg: 10,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Wrist flexors"
         ),
         .init(
             legacyID: 41,
@@ -761,7 +790,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Lower abs"
         ),
         .init(
             legacyID: 51,
@@ -775,7 +805,8 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Lower abs"
         ),
         .init(
             legacyID: 52,
@@ -789,7 +820,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper abs"
         ),
         .init(
             legacyID: 53,
@@ -803,7 +835,8 @@ enum SeedCatalog {
             reps: 10,
             seconds: nil,
             weightKg: 20,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Obliques"
         ),
         .init(
             legacyID: 54,
@@ -817,7 +850,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 45,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Lower abs"
         ),
         .init(
             legacyID: 55,
@@ -831,7 +865,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 45,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Obliques"
         ),
         .init(
             legacyID: 56,
@@ -845,7 +880,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper abs"
         ),
         .init(
             legacyID: 57,
@@ -859,7 +895,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 45,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Obliques"
         ),
         .init(
             legacyID: 58,
@@ -873,7 +910,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 45,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Lower abs"
         ),
         .init(
             legacyID: 59,
@@ -887,7 +925,8 @@ enum SeedCatalog {
             reps: nil,
             seconds: 45,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Obliques"
         ),
         .init(
             legacyID: 60,
@@ -998,7 +1037,7 @@ enum SeedCatalog {
             legacyID: 67,
             name: "Serratus anterior push up",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Chest"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -1006,13 +1045,14 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper back"
         ),
         .init(
             legacyID: 68,
             name: "Band pull apart black thin",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Delts (Rear delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -1020,13 +1060,14 @@ enum SeedCatalog {
             reps: 20,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Upper back"
         ),
         .init(
             legacyID: 69,
             name: "Prone Y raises",
             muscleGroup: "Back",
-            secondaryMuscleGroups: [],
+            secondaryMuscleGroups: ["Delts (Rear delt)"],
             notes: "",
             weekdayIndex: nil,
             customSlot: nil,
@@ -1034,7 +1075,8 @@ enum SeedCatalog {
             reps: 12,
             seconds: nil,
             weightKg: nil,
-            synonyms: []
+            synonyms: [],
+            primarySubMuscleName: "Traps"
         ),
         .init(
             legacyID: 70,

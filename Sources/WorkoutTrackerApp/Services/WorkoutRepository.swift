@@ -404,6 +404,7 @@ final class WorkoutRepository: ObservableObject {
         let calendar = Calendar.workout
 
         let activeGroups = uniqueActiveMuscleGroupsByNormalizedName()
+            .filter { !$0.name.contains("(") }
         var points: [MuscleTrendPoint] = []
 
         for offset in stride(from: weeks - 1, through: 0, by: -1) {
@@ -416,7 +417,7 @@ final class WorkoutRepository: ObservableObject {
                     .reduce(0.0) { partial, log in
                         guard let sets = log.setsSnapshot else { return partial }
                         let setsDouble = Double(sets)
-                        let primaryKey = normalizeGroupName(log.muscleGroupName)
+                        let primaryKey = resolveSecondaryGroupKey(log.muscleGroupName)
                         let secondaryKeys = parseCSV(log.secondaryMuscleGroupsRaw).map(resolveSecondaryGroupKey)
 
                         if primaryKey == groupKey {
@@ -1785,7 +1786,8 @@ final class WorkoutRepository: ObservableObject {
                 secondaryMuscleGroupsRaw: seed.secondaryMuscleGroups.joined(separator: ","),
                 synonymsRaw: seed.synonyms.joined(separator: ","),
                 notes: seed.notes,
-                categoryRaw: seed.category.rawValue
+                categoryRaw: seed.category.rawValue,
+                primarySubMuscleName: seed.primarySubMuscleName
             )
             context.insert(exercise)
 
@@ -1804,7 +1806,8 @@ final class WorkoutRepository: ObservableObject {
                 reps: seed.reps,
                 seconds: seed.seconds,
                 weightKg: seed.weightKg,
-                categoryRaw: seed.category.rawValue
+                categoryRaw: seed.category.rawValue,
+                subMuscleName: seed.primarySubMuscleName
             )
             context.insert(item)
         }
@@ -1865,7 +1868,8 @@ final class WorkoutRepository: ObservableObject {
                         primaryMuscleGroupName: seedDef.muscleGroup,
                         secondaryMuscleGroupsRaw: seedDef.secondaryMuscleGroups.joined(separator: ","),
                         synonymsRaw: seedDef.synonyms.joined(separator: ","),
-                        notes: seedDef.notes
+                        notes: seedDef.notes,
+                        primarySubMuscleName: seedDef.primarySubMuscleName
                     )
                     context.insert(newExercise)
                     exercise = newExercise
@@ -1885,13 +1889,15 @@ final class WorkoutRepository: ObservableObject {
                     name: entry.displayName,
                     muscleGroupID: sectionGroup.id,
                     muscleGroupName: section.muscleGroup,
+                    secondaryMuscleGroupsRaw: exercise.secondaryMuscleGroupsRaw,
                     orderIndex: orderIndex,
                     sets: entry.sets,
                     reps: entry.reps,
                     seconds: entry.seconds,
                     weightKg: entry.weightKg,
                     headerID: header.id,
-                    categoryRaw: section.category.rawValue
+                    categoryRaw: section.category.rawValue,
+                    subMuscleName: exercise.primarySubMuscleName
                 )
                 context.insert(item)
                 orderIndex += 1

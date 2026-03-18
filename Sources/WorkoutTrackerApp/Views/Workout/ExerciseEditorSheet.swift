@@ -28,6 +28,7 @@ struct ExerciseEditorSheet: View {
     @State private var inclineInput: String = ""
     @State private var distanceInput: String = ""
     @State private var heartRateInput: String = ""
+    @State private var rpmInput: String = ""
     @State private var selectedSubMuscle: String?
     @State private var instructionSteps: [String] = []
     @State private var instructionImageItems: [PhotosPickerItem] = []
@@ -170,6 +171,12 @@ struct ExerciseEditorSheet: View {
                         HStack {
                             Text("Heart Rate Target")
                             TextField("Optional", text: $heartRateInput)
+                                .numberPadKeyboardIfAvailable()
+                                .multilineTextAlignment(.trailing)
+                        }
+                        HStack {
+                            Text("RPM")
+                            TextField("Optional", text: $rpmInput)
                                 .numberPadKeyboardIfAvailable()
                                 .multilineTextAlignment(.trailing)
                         }
@@ -325,6 +332,7 @@ struct ExerciseEditorSheet: View {
         inclineInput = exercise.inclinePercent.map { String(format: "%.1f", $0) } ?? ""
         distanceInput = exercise.distanceKm.map { String(format: "%.1f", $0) } ?? ""
         heartRateInput = exercise.heartRateTarget.map(String.init) ?? ""
+        rpmInput = exercise.rpm.map(String.init) ?? ""
 
         selectedSecondaryGroups = exercise.secondaryMuscleGroupsRaw
             .split(separator: ",")
@@ -365,6 +373,7 @@ struct ExerciseEditorSheet: View {
             exercise.inclinePercent = nil
             exercise.distanceKm = nil
             exercise.heartRateTarget = nil
+            exercise.rpm = nil
 
         case .stretch:
             exercise.sets = Int(sets.filter { $0.isNumber })
@@ -377,6 +386,7 @@ struct ExerciseEditorSheet: View {
             exercise.inclinePercent = nil
             exercise.distanceKm = nil
             exercise.heartRateTarget = nil
+            exercise.rpm = nil
 
         case .cardio:
             exercise.sets = nil
@@ -388,6 +398,7 @@ struct ExerciseEditorSheet: View {
             exercise.distanceKm = Double(distanceInput.replacingOccurrences(of: ",", with: "."))
             exercise.inclinePercent = Double(inclineInput.replacingOccurrences(of: ",", with: "."))
             exercise.heartRateTarget = Int(heartRateInput.filter { $0.isNumber })
+            exercise.rpm = Int(rpmInput.filter { $0.isNumber })
         }
 
         exercise.secondaryMuscleGroupsRaw = selectedSecondaryGroups.joined(separator: ",")

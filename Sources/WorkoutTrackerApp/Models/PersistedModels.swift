@@ -271,6 +271,7 @@ final class WorkoutTemplateExerciseEntity {
     var inclinePercent: Double?
     var distanceKm: Double?
     var heartRateTarget: Int?
+    var rpm: Int?
     var subMuscleName: String?
     var instructionStepsRaw: String
     @Attribute(.externalStorage) var instructionImagesData: Data?
@@ -299,6 +300,7 @@ final class WorkoutTemplateExerciseEntity {
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
         heartRateTarget: Int? = nil,
+        rpm: Int? = nil,
         subMuscleName: String? = nil,
         instructionStepsRaw: String = "",
         instructionImagesData: Data? = nil
@@ -326,6 +328,7 @@ final class WorkoutTemplateExerciseEntity {
         self.inclinePercent = inclinePercent
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
+        self.rpm = rpm
         self.subMuscleName = subMuscleName
         self.instructionStepsRaw = instructionStepsRaw
         self.instructionImagesData = instructionImagesData
@@ -382,6 +385,7 @@ final class WeeklyExerciseEntity {
     var inclinePercent: Double?
     var distanceKm: Double?
     var heartRateTarget: Int?
+    var rpm: Int?
     var subMuscleName: String?
     var instructionStepsRaw: String
     @Attribute(.externalStorage) var instructionImagesData: Data?
@@ -412,6 +416,7 @@ final class WeeklyExerciseEntity {
         inclinePercent: Double? = nil,
         distanceKm: Double? = nil,
         heartRateTarget: Int? = nil,
+        rpm: Int? = nil,
         subMuscleName: String? = nil,
         instructionStepsRaw: String = "",
         instructionImagesData: Data? = nil
@@ -441,6 +446,7 @@ final class WeeklyExerciseEntity {
         self.inclinePercent = inclinePercent
         self.distanceKm = distanceKm
         self.heartRateTarget = heartRateTarget
+        self.rpm = rpm
         self.subMuscleName = subMuscleName
         self.instructionStepsRaw = instructionStepsRaw
         self.instructionImagesData = instructionImagesData
@@ -493,6 +499,7 @@ final class CompletionLogEntity {
     var inclinePercentSnapshot: Double?
     var distanceKmSnapshot: Double?
     var heartRateTargetSnapshot: Int?
+    var rpmSnapshot: Int?
     var subMuscleNameSnapshot: String?
     var setDetailsJSON: String?
 
@@ -518,6 +525,7 @@ final class CompletionLogEntity {
         inclinePercentSnapshot: Double? = nil,
         distanceKmSnapshot: Double? = nil,
         heartRateTargetSnapshot: Int? = nil,
+        rpmSnapshot: Int? = nil,
         subMuscleNameSnapshot: String? = nil,
         setDetailsJSON: String? = nil
     ) {
@@ -542,6 +550,7 @@ final class CompletionLogEntity {
         self.inclinePercentSnapshot = inclinePercentSnapshot
         self.distanceKmSnapshot = distanceKmSnapshot
         self.heartRateTargetSnapshot = heartRateTargetSnapshot
+        self.rpmSnapshot = rpmSnapshot
         self.subMuscleNameSnapshot = subMuscleNameSnapshot
         self.setDetailsJSON = setDetailsJSON
     }

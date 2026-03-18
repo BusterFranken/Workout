@@ -1034,6 +1034,7 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
+                rpm: row.rpm,
                 subMuscleName: row.subMuscleName,
                 instructionStepsRaw: row.instructionStepsRaw,
                 instructionImagesData: row.instructionImagesData
@@ -1114,6 +1115,7 @@ final class WorkoutRepository: ObservableObject {
                     inclinePercentSnapshot: exercise.inclinePercent,
                     distanceKmSnapshot: exercise.distanceKm,
                     heartRateTargetSnapshot: exercise.heartRateTarget,
+                    rpmSnapshot: exercise.rpm,
                     subMuscleNameSnapshot: exercise.subMuscleName
                 )
             )
@@ -1480,6 +1482,7 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
+                rpm: row.rpm,
                 subMuscleName: row.subMuscleName,
                 instructionStepsRaw: row.instructionStepsRaw,
                 instructionImagesData: row.instructionImagesData
@@ -1573,6 +1576,7 @@ final class WorkoutRepository: ObservableObject {
                 inclinePercent: row.inclinePercent,
                 distanceKm: row.distanceKm,
                 heartRateTarget: row.heartRateTarget,
+                rpm: row.rpm,
                 subMuscleName: row.subMuscleName,
                 instructionStepsRaw: row.instructionStepsRaw,
                 instructionImagesData: row.instructionImagesData

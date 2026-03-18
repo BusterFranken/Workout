@@ -45,6 +45,51 @@ struct ExerciseDetailSheet: View {
         }
     }
 
+    private var durationHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            guard let mins = log.durationMinutesSnapshot, mins > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: Double(mins))
+        }
+    }
+
+    private var distanceHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            guard let km = log.distanceKmSnapshot, km > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: km)
+        }
+    }
+
+    private var intensityHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            let label = log.intensityLabelSnapshot
+            guard !label.isEmpty else { return nil }
+            let digits = label.filter { $0.isNumber }
+            guard let value = Double(digits), value > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: value)
+        }
+    }
+
+    private var inclineHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            guard let pct = log.inclinePercentSnapshot, pct > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: pct)
+        }
+    }
+
+    private var heartRateHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            guard let hr = log.heartRateTargetSnapshot, hr > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: Double(hr))
+        }
+    }
+
+    private var rpmHistory: [ProgressPoint] {
+        logs.compactMap { log in
+            guard let rpm = log.rpmSnapshot, rpm > 0 else { return nil }
+            return ProgressPoint(date: log.completedAt, value: Double(rpm))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -70,7 +115,7 @@ struct ExerciseDetailSheet: View {
 
                     if logs.isEmpty {
                         emptyCard("No completed logs yet. Check off this exercise to start tracking progression.")
-                    } else {
+                    } else if exercise.category == .exercise {
                         chartCard(title: "Weight Progression (\(repository.unitSystem.title))") {
                             let yValues = Array(Set(weightHistory.map(\.value))).sorted()
                             let visibleValues = Array(Set(weightHistory.suffix(10).map(\.value))).sorted()
@@ -182,6 +227,13 @@ struct ExerciseDetailSheet: View {
                                 .frame(height: 180)
                             }
                         }
+                    } else if exercise.category == .cardio {
+                        progressionChart(title: "Duration", data: durationHistory, unit: "min", color: Theme.accent)
+                        progressionChart(title: "Distance", data: distanceHistory, unit: "km", color: .blue)
+                        progressionChart(title: "Intensity", data: intensityHistory, unit: "level", color: .orange)
+                        progressionChart(title: "Incline", data: inclineHistory, unit: "%", color: .green)
+                        progressionChart(title: "Heart Rate", data: heartRateHistory, unit: "bpm", color: .red)
+                        progressionChart(title: "RPM", data: rpmHistory, unit: "rpm", color: .purple)
                     }
 
                     if !exercise.instructionSteps.isEmpty || !exercise.instructionImages.isEmpty {
@@ -329,6 +381,67 @@ struct ExerciseDetailSheet: View {
         let span = max(maxValue - minValue, 1)
         let padding = max(span * 0.1, 0.5)
         return (minValue - padding)...(maxValue + padding)
+    }
+
+    @ViewBuilder
+    private func progressionChart(title: String, data: [ProgressPoint], unit: String, color: Color) -> some View {
+        if !data.isEmpty {
+            chartCard(title: "\(title) Progression (\(unit))") {
+                let yValues = Array(Set(data.map(\.value))).sorted()
+                let visibleValues = Array(Set(data.suffix(10).map(\.value))).sorted()
+                let domain = paddedDomain(for: yValues)
+                let yAxisValues = visibleValues.isEmpty ? yValues : visibleValues
+
+                ScrollableChartContainer(
+                    entryCount: data.count,
+                    threshold: chartScrollThreshold,
+                    pointWidth: chartPointWidth
+                ) {
+                    Chart(data) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value(title, point.value)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(color)
+
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value(title, point.value)
+                        )
+                        .foregroundStyle(color)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: data.map(\.date)) { _ in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading, values: yAxisValues) { value in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel {
+                                if let amount = value.as(Double.self) {
+                                    Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(unit)")
+                                }
+                            }
+                        }
+                        AxisMarks(position: .trailing, values: yAxisValues) { value in
+                            AxisTick()
+                            AxisValueLabel {
+                                if let amount = value.as(Double.self) {
+                                    Text("\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(unit)")
+                                }
+                            }
+                        }
+                    }
+                    .chartYScale(domain: domain)
+                    .frame(height: 180)
+                }
+            }
+        }
     }
 
     // MARK: - Detailed Log

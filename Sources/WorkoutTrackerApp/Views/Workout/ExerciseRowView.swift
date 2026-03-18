@@ -374,6 +374,16 @@ struct ExerciseRowView: View {
                     isEditable: !isReordering
                 )
             }
+            if exercise.rpm != nil {
+                MetricBubble(
+                    text: rpmBinding,
+                    suffix: "rpm",
+                    minCharacterCount: 2,
+                    focusedMetric: $focusedMetric,
+                    focusField: .rpm,
+                    isEditable: !isReordering
+                )
+            }
         }
     }
 
@@ -428,6 +438,16 @@ struct ExerciseRowView: View {
             get: { exercise.heartRateTarget.map(String.init) ?? "" },
             set: {
                 exercise.heartRateTarget = Int($0.filter { $0.isNumber })
+                repository.updateExercise(exercise)
+            }
+        )
+    }
+
+    private var rpmBinding: Binding<String> {
+        Binding(
+            get: { exercise.rpm.map(String.init) ?? "" },
+            set: {
+                exercise.rpm = Int($0.filter { $0.isNumber })
                 repository.updateExercise(exercise)
             }
         )
@@ -501,7 +521,7 @@ private enum RowDragIntent {
 
 private enum RowMetricField: Hashable {
     case sets, reps, weight
-    case duration, intensity, distance, incline, heartRate
+    case duration, intensity, distance, incline, heartRate, rpm
 }
 
 private struct RowDropDelegate: DropDelegate {

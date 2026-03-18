@@ -16,6 +16,7 @@ struct ExerciseDetailSheet: View {
     @State private var detailedLogExpanded = true
     @State private var setRows: [SetRowState] = []
     @State private var hasLoadedSetRows = false
+    @State private var showSaveConfirmation = false
     private let chartScrollThreshold = 10
     private let chartPointWidth: CGFloat = 36
 
@@ -424,13 +425,22 @@ struct ExerciseDetailSheet: View {
                     Button {
                         saveDetailedLog()
                     } label: {
-                        Text("Save Log")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
+                        HStack(spacing: 6) {
+                            if showSaveConfirmation {
+                                Image(systemName: "checkmark")
+                                    .fontWeight(.semibold)
+                                    .transition(.scale.combined(with: .opacity))
+                                Text("Saved")
+                            } else {
+                                Text("Save Log")
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    .tint(showSaveConfirmation ? .green : Theme.accent)
                 }
                 .padding([.horizontal, .bottom])
             }
@@ -469,6 +479,15 @@ struct ExerciseDetailSheet: View {
         }
         guard !details.isEmpty else { return }
         repository.saveDetailedLog(for: exercise, setDetails: details)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            showSaveConfirmation = true
+        }
+        Haptics.success()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showSaveConfirmation = false
+            }
+        }
     }
 
     private func displayedWeightString(from kg: Double?) -> String {
